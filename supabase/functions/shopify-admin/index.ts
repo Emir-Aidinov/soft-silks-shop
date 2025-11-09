@@ -70,13 +70,13 @@ serve(async (req) => {
     const path = url.pathname.split('/shopify-admin')[1] || '/';
     const method = req.method;
 
-    const SHOPIFY_STORE_DOMAIN = Deno.env.get('SHOPIFY_STORE_PERMANENT_DOMAIN');
-    const SHOPIFY_ACCESS_TOKEN = Deno.env.get('SHOPIFY_ADMIN_ACCESS_TOKEN');
+    const SHOPIFY_STORE_DOMAIN = Deno.env.get('SHOPIFY_STORE_PERMANENT_DOMAIN') || 'soft-silks-shop-hruls.myshopify.com';
+    const SHOPIFY_ACCESS_TOKEN = Deno.env.get('SHOPIFY_ACCESS_TOKEN');
     const SHOPIFY_API_VERSION = '2025-07';
 
-    if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+    if (!SHOPIFY_ACCESS_TOKEN) {
       return new Response(
-        JSON.stringify({ error: 'Shopify credentials not configured' }),
+        JSON.stringify({ error: 'Shopify access token not configured' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
