@@ -36,8 +36,12 @@ const Catalog = () => {
     const fetchProducts = async () => {
       try {
         const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
+        // ----> ДОБАВЬТЕ ЭТУ СТРОКУ <----
+        console.log("ОТВЕТ ОТ SHOPIFY:", data);
         setProducts(data.data.products.edges);
       } catch (error) {
+        // ----> И ЭТУ ТОЖЕ <----
+        console.error("ОШИБКА ЗАПРОСА SHOPIFY:", error);
         console.error('Error fetching products:', error);
       } finally {
         setLoading(false);
