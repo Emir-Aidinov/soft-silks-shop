@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Select,
   SelectContent,
@@ -69,10 +70,28 @@ export default function Discounts() {
   const fetchPriceRules = async () => {
     try {
       setIsLoading(true);
-      // TODO: Implement Shopify API call to fetch price rules
-      // This is a placeholder - you'll need to call your Shopify API endpoint
-      toast.info('Функция управления скидками требует интеграции с Shopify API');
-      setPriceRules([]);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-admin/price-rules`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch price rules');
+      }
+
+      const data = await response.json();
+      setPriceRules(data.price_rules || []);
     } catch (error) {
       console.error('Error fetching price rules:', error);
       toast.error('Ошибка при загрузке скидок');
@@ -83,10 +102,31 @@ export default function Discounts() {
 
   const fetchDiscountCodes = async (priceRuleId: number) => {
     try {
-      // TODO: Implement Shopify API call to fetch discount codes
-      setDiscountCodes(prev => ({ ...prev, [priceRuleId]: [] }));
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-admin/price-rules/${priceRuleId}/discount-codes`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch discount codes');
+      }
+
+      const data = await response.json();
+      setDiscountCodes(prev => ({ ...prev, [priceRuleId]: data.discount_codes || [] }));
     } catch (error) {
       console.error('Error fetching discount codes:', error);
+      toast.error('Ошибка при загрузке промокодов');
     }
   };
 
@@ -97,8 +137,39 @@ export default function Discounts() {
         return;
       }
 
-      // TODO: Implement Shopify API call to create price rule
-      toast.success('Скидка создана (требуется интеграция с Shopify API)');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const priceRuleData = {
+        title,
+        value_type: valueType,
+        value: valueType === 'percentage' ? `-${value}` : `-${value}`,
+        prerequisite_subtotal: prerequisiteSubtotal || undefined,
+        starts_at: startsAt ? new Date(startsAt).toISOString() : undefined,
+        ends_at: endsAt ? new Date(endsAt).toISOString() : undefined,
+      };
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-admin/price-rules`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(priceRuleData),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to create price rule');
+      }
+
+      toast.success('Скидка успешно создана');
       setIsCreateOpen(false);
       resetForm();
       fetchPriceRules();
@@ -115,8 +186,30 @@ export default function Discounts() {
         return;
       }
 
-      // TODO: Implement Shopify API call to create discount code
-      toast.success('Промокод создан (требуется интеграция с Shopify API)');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-admin/price-rules/${priceRuleId}/discount-codes`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ code: newCodeInput }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to create discount code');
+      }
+
+      toast.success('Промокод успешно создан');
       setNewCodeInput('');
       fetchDiscountCodes(priceRuleId);
     } catch (error) {
@@ -127,12 +220,63 @@ export default function Discounts() {
 
   const deletePriceRule = async (id: number) => {
     try {
-      // TODO: Implement Shopify API call to delete price rule
-      toast.success('Скидка удалена (требуется интеграция с Shopify API)');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-admin/price-rules/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete price rule');
+      }
+
+      toast.success('Скидка успешно удалена');
       fetchPriceRules();
     } catch (error) {
       console.error('Error deleting price rule:', error);
       toast.error('Ошибка при удалении скидки');
+    }
+  };
+
+  const deleteDiscountCode = async (priceRuleId: number, discountCodeId: number) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Необходима авторизация');
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/shopify-admin/price-rules/${priceRuleId}/discount-codes/${discountCodeId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete discount code');
+      }
+
+      toast.success('Промокод успешно удален');
+      fetchDiscountCodes(priceRuleId);
+    } catch (error) {
+      console.error('Error deleting discount code:', error);
+      toast.error('Ошибка при удалении промокода');
     }
   };
 
@@ -262,7 +406,7 @@ export default function Discounts() {
                 Скидки не найдены
               </p>
               <p className="text-sm text-muted-foreground">
-                Для работы с Shopify API скидок требуется дополнительная настройка интеграции
+                Создайте первую скидку, чтобы начать работу
               </p>
             </div>
           ) : (
@@ -354,7 +498,16 @@ export default function Discounts() {
                           Использований: {code.usage_count}
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => {
+                          const codeToDelete = code;
+                          if (selectedPriceRule && confirm(`Удалить промокод ${codeToDelete.code}?`)) {
+                            deleteDiscountCode(selectedPriceRule, codeToDelete.id);
+                          }
+                        }}
+                      >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
