@@ -61,10 +61,18 @@ export const Header = () => {
           <CartDrawer />
           
           {user ? (
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Выход
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/profile">
+                  <User className="h-4 w-4 mr-2" />
+                  Профиль
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Выход
+              </Button>
+            </>
           ) : (
             <Button variant="outline" size="sm" asChild>
               <Link to="/auth">
