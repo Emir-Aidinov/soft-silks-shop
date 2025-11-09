@@ -1,16 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, LogOut, User } from "lucide-react";
+import { Heart, LogOut, User, Shield } from "lucide-react";
 import { CartDrawer } from "./CartDrawer";
 import { Button } from "./ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { useAdminCheck } from "@/hooks/useAdminCheck";
 
 export const Header = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const { isAdmin } = useAdminCheck();
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -55,6 +57,12 @@ export const Header = () => {
           <Link to="/catalog" className="transition-colors hover:text-primary">
             Каталог
           </Link>
+          {isAdmin && (
+            <Link to="/admin" className="transition-colors hover:text-primary flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Админ-панель
+            </Link>
+          )}
         </nav>
         
         <div className="flex items-center gap-4">
