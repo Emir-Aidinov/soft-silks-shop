@@ -90,8 +90,7 @@ const Catalog = () => {
 
   const filteredProducts = products.filter(p => {
     const categoryMatch = !selectedCategory || 
-      p.node.title.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-      p.node.description.toLowerCase().includes(selectedCategory.toLowerCase());
+      p.node.productType.toLowerCase() === selectedCategory.toLowerCase();
 
     const colorMatch = selectedColors.length === 0 || 
       p.node.variants.edges.some(v => 
