@@ -1,7 +1,7 @@
 const SHOPIFY_API_VERSION = '2025-07';
 const SHOPIFY_STORE_PERMANENT_DOMAIN = 'soft-silks-shop-hruls.myshopify.com';
 const SHOPIFY_STOREFRONT_URL = `https://${SHOPIFY_STORE_PERMANENT_DOMAIN}/api/${SHOPIFY_API_VERSION}/graphql.json`;
-const SHOPIFY_STOREFRONT_TOKEN = 'b5a86cfce81d5ddd3a95b21e7a2a6e0e';
+const SHOPIFY_STOREFRONT_TOKEN = '410b72cbb5e7c1565590a94f4d189149';
 
 export interface ShopifyProduct {
   node: {

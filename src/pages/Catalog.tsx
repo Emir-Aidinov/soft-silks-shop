@@ -35,7 +35,7 @@ const Catalog = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
+        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 10 });
         // ----> ДОБАВЬТЕ ЭТУ СТРОКУ <----
         console.log("ОТВЕТ ОТ SHOPIFY:", data);
         setProducts(data.data.products.edges);
