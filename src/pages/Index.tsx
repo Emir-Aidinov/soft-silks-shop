@@ -136,16 +136,105 @@ const Index = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t bg-secondary/30 py-8 md:py-12">
+      <footer className="border-t bg-secondary/30 py-10 md:py-14">
         <div className="container px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">💝</span>
-              <span className="font-bold text-lg">Бесценки</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+            {/* Brand */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-2xl">💝</span>
+                <span className="font-bold text-lg">Бесценки</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Магазин женского белья с любовью к каждой клиентке
+              </p>
             </div>
+
+            {/* Navigation */}
+            <div>
+              <h4 className="font-semibold mb-4">Каталог</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link to="/catalog?category=сорочки" className="text-muted-foreground hover:text-primary transition-colors">
+                    Сорочки
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/catalog?category=трусы" className="text-muted-foreground hover:text-primary transition-colors">
+                    Трусы
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/catalog?category=бюстгальтеры" className="text-muted-foreground hover:text-primary transition-colors">
+                    Бюстгальтеры
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/catalog?category=наборы" className="text-muted-foreground hover:text-primary transition-colors">
+                    Наборы
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Info */}
+            <div>
+              <h4 className="font-semibold mb-4">Информация</h4>
+              <ul className="space-y-2 text-sm">
+                <li>
+                  <Link to="/about" className="text-muted-foreground hover:text-primary transition-colors">
+                    О нас
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/delivery" className="text-muted-foreground hover:text-primary transition-colors">
+                    Доставка и оплата
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/returns" className="text-muted-foreground hover:text-primary transition-colors">
+                    Возврат и обмен
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/contacts" className="text-muted-foreground hover:text-primary transition-colors">
+                    Контакты
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h4 className="font-semibold mb-4">Контакты</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <a href="tel:+996555123456" className="hover:text-primary transition-colors">
+                    +996 555 123 456
+                  </a>
+                </li>
+                <li>
+                  <a href="https://wa.me/996555123456" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                    WhatsApp
+                  </a>
+                </li>
+                <li>
+                  <a href="https://t.me/bescenki" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                    Telegram
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="border-t pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
               © 2024 Бесценки. Все права защищены.
             </p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <Link to="/about" className="hover:text-primary transition-colors">О нас</Link>
+              <Link to="/contacts" className="hover:text-primary transition-colors">Контакты</Link>
+            </div>
           </div>
         </div>
       </footer>
