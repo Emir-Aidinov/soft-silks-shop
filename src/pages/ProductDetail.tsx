@@ -205,14 +205,14 @@ const ProductDetail = () => {
             <div>
               <h1 className="text-2xl md:text-4xl font-bold mb-3">{node.title}</h1>
               <div className="flex items-center gap-3">
-                <p className="text-3xl md:text-4xl font-bold text-primary">
-                  {formatPrice(price)}
-                </p>
                 {hasDiscount && (
                   <p className="text-xl text-muted-foreground line-through">
                     {formatPrice(compareAtPrice)}
                   </p>
                 )}
+                <p className={`text-3xl md:text-4xl font-bold ${hasDiscount ? 'text-destructive' : 'text-primary'}`}>
+                  {formatPrice(price)}
+                </p>
               </div>
               {/* Low stock indicator */}
               {showLowStock && (

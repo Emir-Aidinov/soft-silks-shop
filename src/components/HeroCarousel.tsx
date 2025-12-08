@@ -238,10 +238,10 @@ export const SaleProducts = () => {
                   <div className="p-4 bg-gradient-to-t from-card to-card/80">
                     <h3 className="font-semibold truncate">{product.node.title}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-lg font-bold text-primary">{formatPrice(price)}</span>
                       {hasDiscount && (
                         <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAtPrice)}</span>
                       )}
+                      <span className={`text-lg font-bold ${hasDiscount ? 'text-destructive' : 'text-primary'}`}>{formatPrice(price)}</span>
                     </div>
                   </div>
                 </Link>
