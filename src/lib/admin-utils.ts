@@ -116,14 +116,11 @@ export const getTopProducts = (orders: Order[], limit: number = 10): TopProduct[
       revenue: data.revenue
     }))
     .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, limit);
+  .slice(0, limit);
 };
 
-export const formatCurrency = (amount: number, currency: string = 'RUB'): string => {
-  return new Intl.NumberFormat('ru-RU', {
-    style: 'currency',
-    currency: currency
-  }).format(amount);
+export const formatCurrency = (amount: number, currency: string = 'KGS'): string => {
+  return `${amount.toLocaleString('ru-RU')} сом`;
 };
 
 export const formatDate = (date: string): string => {
@@ -134,4 +131,101 @@ export const formatDate = (date: string): string => {
     hour: '2-digit',
     minute: '2-digit'
   }).format(new Date(date));
+};
+
+export interface WeeklySalesData {
+  week: string;
+  revenue: number;
+  orders: number;
+  avgOrderValue: number;
+}
+
+export const groupSalesByWeek = (orders: Order[], weeks: number = 8): WeeklySalesData[] => {
+  const weekMap = new Map<string, { revenue: number; orders: number }>();
+  
+  const now = new Date();
+  for (let i = weeks - 1; i >= 0; i--) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - (i * 7 + weekStart.getDay()));
+    const weekStr = weekStart.toISOString().split('T')[0];
+    weekMap.set(weekStr, { revenue: 0, orders: 0 });
+  }
+
+  orders.forEach(order => {
+    if (order.status !== 'cancelled') {
+      const orderDate = new Date(order.created_at);
+      const weekStart = new Date(orderDate);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekStr = weekStart.toISOString().split('T')[0];
+      
+      const existing = weekMap.get(weekStr);
+      if (existing) {
+        existing.revenue += Number(order.total);
+        existing.orders += 1;
+      }
+    }
+  });
+
+  return Array.from(weekMap.entries())
+    .map(([week, data]) => ({
+      week,
+      revenue: data.revenue,
+      orders: data.orders,
+      avgOrderValue: data.orders > 0 ? data.revenue / data.orders : 0
+    }))
+    .sort((a, b) => a.week.localeCompare(b.week));
+};
+
+export interface PeriodComparison {
+  currentRevenue: number;
+  previousRevenue: number;
+  currentOrders: number;
+  previousOrders: number;
+  revenueChange: number;
+  ordersChange: number;
+}
+
+export const comparePeriods = (orders: Order[], days: number = 30): PeriodComparison => {
+  const now = new Date();
+  const currentPeriodStart = new Date(now);
+  currentPeriodStart.setDate(currentPeriodStart.getDate() - days);
+  
+  const previousPeriodStart = new Date(currentPeriodStart);
+  previousPeriodStart.setDate(previousPeriodStart.getDate() - days);
+
+  let currentRevenue = 0;
+  let previousRevenue = 0;
+  let currentOrders = 0;
+  let previousOrders = 0;
+
+  orders.forEach(order => {
+    if (order.status !== 'cancelled') {
+      const orderDate = new Date(order.created_at);
+      
+      if (orderDate >= currentPeriodStart) {
+        currentRevenue += Number(order.total);
+        currentOrders += 1;
+      } else if (orderDate >= previousPeriodStart && orderDate < currentPeriodStart) {
+        previousRevenue += Number(order.total);
+        previousOrders += 1;
+      }
+    }
+  });
+
+  const revenueChange = previousRevenue > 0 
+    ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 
+    : currentRevenue > 0 ? 100 : 0;
+    
+  const ordersChange = previousOrders > 0 
+    ? ((currentOrders - previousOrders) / previousOrders) * 100 
+    : currentOrders > 0 ? 100 : 0;
+
+  return {
+    currentRevenue,
+    previousRevenue,
+    currentOrders,
+    previousOrders,
+    revenueChange,
+    ordersChange
+  };
 };

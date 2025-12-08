@@ -6,7 +6,7 @@ interface StatsCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
-  description?: string;
+  description?: React.ReactNode;
   trend?: {
     value: number;
     isPositive: boolean;

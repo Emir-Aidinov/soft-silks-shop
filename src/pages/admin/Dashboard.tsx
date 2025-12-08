@@ -2,12 +2,16 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { StatsCard } from '@/components/admin/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   DollarSign, 
   ShoppingCart, 
   TrendingUp, 
+  TrendingDown,
   Users,
-  Loader2 
+  Loader2,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -20,13 +24,19 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend
+  Legend,
+  LineChart,
+  Line,
+  AreaChart,
+  Area
 } from 'recharts';
 import { 
   calculateOrderStats, 
   groupSalesByDate, 
+  groupSalesByWeek,
   getTopProducts,
-  formatCurrency 
+  formatCurrency,
+  comparePeriods
 } from '@/lib/admin-utils';
 import { Database } from '@/integrations/supabase/types';
 
@@ -49,6 +59,7 @@ const STATUS_LABELS = {
 export default function Dashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [chartPeriod, setChartPeriod] = useState<'daily' | 'weekly'>('daily');
 
   useEffect(() => {
     fetchOrders();
@@ -80,7 +91,9 @@ export default function Dashboard() {
 
   const stats = calculateOrderStats(orders);
   const salesData = groupSalesByDate(orders, 30);
+  const weeklySalesData = groupSalesByWeek(orders, 8);
   const topProducts = getTopProducts(orders, 5);
+  const periodComparison = comparePeriods(orders, 30);
 
   const statusChartData = Object.entries(stats.ordersByStatus).map(([status, count]) => ({
     name: STATUS_LABELS[status as keyof typeof STATUS_LABELS],
@@ -88,22 +101,38 @@ export default function Dashboard() {
     color: STATUS_COLORS[status as keyof typeof STATUS_COLORS]
   }));
 
+  const formatChange = (change: number) => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(1)}%`;
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold">Дашборд</h2>
 
+      {/* Period Comparison Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
-          title="Общая выручка"
-          value={formatCurrency(stats.totalRevenue)}
+          title="Выручка (30 дней)"
+          value={formatCurrency(periodComparison.currentRevenue)}
           icon={DollarSign}
-          description="За все время"
+          description={
+            <span className={`flex items-center gap-1 ${periodComparison.revenueChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {periodComparison.revenueChange >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {formatChange(periodComparison.revenueChange)} vs пред. период
+            </span>
+          }
         />
         <StatsCard
-          title="Всего заказов"
-          value={stats.totalOrders}
+          title="Заказы (30 дней)"
+          value={periodComparison.currentOrders}
           icon={ShoppingCart}
-          description="Завершенных и активных"
+          description={
+            <span className={`flex items-center gap-1 ${periodComparison.ordersChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {periodComparison.ordersChange >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+              {formatChange(periodComparison.ordersChange)} vs пред. период
+            </span>
+          }
         />
         <StatsCard
           title="Средний чек"
@@ -119,30 +148,80 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Продажи за 30 дней</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Sales Chart with Period Toggle */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Динамика продаж</CardTitle>
+          <Tabs value={chartPeriod} onValueChange={(v) => setChartPeriod(v as 'daily' | 'weekly')}>
+            <TabsList>
+              <TabsTrigger value="daily">По дням</TabsTrigger>
+              <TabsTrigger value="weekly">По неделям</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardHeader>
+        <CardContent>
+          {chartPeriod === 'daily' ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" />
+              <AreaChart data={salesData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis 
                   dataKey="date" 
                   tickFormatter={(value) => new Date(value).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                  className="text-xs"
                 />
-                <YAxis />
+                <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} className="text-xs" />
                 <Tooltip 
                   formatter={(value: number) => formatCurrency(value)}
                   labelFormatter={(label) => new Date(label).toLocaleDateString('ru-RU')}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                 />
-                <Bar dataKey="revenue" fill="hsl(var(--primary))" />
+                <Area 
+                  type="monotone" 
+                  dataKey="revenue" 
+                  stroke="hsl(var(--primary))" 
+                  fillOpacity={1} 
+                  fill="url(#colorRevenue)" 
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={weeklySalesData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="week" 
+                  tickFormatter={(value) => `Нед. ${new Date(value).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}`}
+                  className="text-xs"
+                />
+                <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} className="text-xs" />
+                <Tooltip 
+                  formatter={(value: number, name: string) => {
+                    if (name === 'revenue') return [formatCurrency(value), 'Выручка'];
+                    if (name === 'orders') return [value, 'Заказы'];
+                    return [formatCurrency(value), 'Средний чек'];
+                  }}
+                  labelFormatter={(label) => `Неделя от ${new Date(label).toLocaleDateString('ru-RU')}`}
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
+      <div className="grid gap-6 md:grid-cols-2">
+
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Статусы заказов</CardTitle>

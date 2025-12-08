@@ -18,8 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Eye } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Loader2, Eye, Download, FileText, FileJson } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/admin-utils';
+import { exportOrdersToCSV, exportOrdersToJSON } from '@/lib/export-utils';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import {
@@ -108,22 +115,52 @@ export default function Orders() {
     );
   }
 
+  const handleExportCSV = () => {
+    exportOrdersToCSV(orders);
+    toast.success('Заказы экспортированы в CSV');
+  };
+
+  const handleExportJSON = () => {
+    exportOrdersToJSON(orders);
+    toast.success('Заказы экспортированы в JSON');
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-3xl font-bold">Заказы</h2>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Фильтр по статусу" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все заказы</SelectItem>
-            <SelectItem value="pending">В ожидании</SelectItem>
-            <SelectItem value="processing">Обрабатывается</SelectItem>
-            <SelectItem value="completed">Завершен</SelectItem>
-            <SelectItem value="cancelled">Отменен</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Экспорт
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileText className="h-4 w-4 mr-2" />
+                Экспорт в CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportJSON}>
+                <FileJson className="h-4 w-4 mr-2" />
+                Экспорт в JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Фильтр по статусу" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Все заказы</SelectItem>
+              <SelectItem value="pending">В ожидании</SelectItem>
+              <SelectItem value="processing">Обрабатывается</SelectItem>
+              <SelectItem value="completed">Завершен</SelectItem>
+              <SelectItem value="cancelled">Отменен</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Card>
