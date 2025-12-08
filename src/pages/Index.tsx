@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { HeroCarousel, SaleProducts } from "@/components/HeroCarousel";
+import { PromoBanner } from "@/components/PromoBanner";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
 import { ArrowRight, Sparkles, Star, TrendingUp } from "lucide-react";
 
@@ -28,6 +30,13 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Promo Banner */}
+      <PromoBanner 
+        code="WELCOME15" 
+        discount="-15% на первый заказ" 
+        description="Используйте промокод при оформлении заказа"
+      />
+      
       <Header />
       
       {/* Hero Carousel */}
@@ -99,7 +108,7 @@ const Index = () => {
           {loading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="aspect-[3/4] bg-secondary/20 rounded-xl animate-pulse" />
+                <ProductCardSkeleton key={i} />
               ))}
             </div>
           ) : products.length === 0 ? (

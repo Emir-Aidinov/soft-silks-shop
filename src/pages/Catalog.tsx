@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductCardSkeletonGrid } from "@/components/ProductCardSkeleton";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, PRODUCT_INVENTORY } from "@/lib/shopify";
-import { Loader2, SlidersHorizontal, X, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { SlidersHorizontal, X, ArrowUpDown, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +58,8 @@ const Catalog = () => {
   const sortBy = (searchParams.get("sort") as SortOption) || "default";
   const stockFilter = (searchParams.get("stock") as StockFilter) || "all";
   const currentPage = parseInt(searchParams.get("page") || "1", 10);
+  const searchQuery = searchParams.get("q") || "";
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   // Update URL with filters
   const updateFilters = (updates: Record<string, string | string[] | null>) => {
@@ -78,6 +82,17 @@ const Catalog = () => {
   const setSortBy = (value: SortOption) => updateFilters({ sort: value === "default" ? null : value, page: null });
   const setStockFilter = (value: StockFilter) => updateFilters({ stock: value === "all" ? null : value, page: null });
   const setPage = (page: number) => updateFilters({ page: page === 1 ? null : String(page) });
+  const setSearchQuery = (value: string) => updateFilters({ q: value || null, page: null });
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchInput);
+  };
+
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearchQuery("");
+  };
 
   const toggleColor = (color: string) => {
     const newColors = selectedColors.includes(color)
@@ -128,9 +143,14 @@ const Catalog = () => {
     )
   ).filter(Boolean) as string[];
 
-  const activeFiltersCount = (selectedCategory ? 1 : 0) + selectedColors.length + selectedSizes.length + (stockFilter !== "all" ? 1 : 0);
+  const activeFiltersCount = (selectedCategory ? 1 : 0) + selectedColors.length + selectedSizes.length + (stockFilter !== "all" ? 1 : 0) + (searchQuery ? 1 : 0);
 
   const filteredProducts = products.filter(p => {
+    // Search filter
+    const searchMatch = !searchQuery || 
+      p.node.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.node.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
     const categoryMatch = !selectedCategory || 
       p.node.productType.toLowerCase() === selectedCategory.toLowerCase();
 
@@ -155,7 +175,7 @@ const Catalog = () => {
       (stockFilter === "in-stock" && isInStock) ||
       (stockFilter === "out-of-stock" && !isInStock);
 
-    return categoryMatch && colorMatch && sizeMatch && stockMatch;
+    return searchMatch && categoryMatch && colorMatch && sizeMatch && stockMatch;
   });
 
   // Sort products
@@ -286,6 +306,41 @@ const Catalog = () => {
       <Header />
       
       <main className="container py-4 md:py-8 px-4">
+        {/* Search bar */}
+        <form onSubmit={handleSearch} className="mb-6">
+          <div className="relative max-w-xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Поиск товаров..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-12 pr-24 h-12 text-base bg-secondary/50 border-border/50 focus-visible:ring-primary/50"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-20 top-1/2 -translate-y-1/2 p-1 hover:bg-secondary rounded"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+            <Button 
+              type="submit" 
+              size="sm" 
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+            >
+              Найти
+            </Button>
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Результаты поиска: "{searchQuery}"
+            </p>
+          )}
+        </form>
+
         <div className="mb-6 md:mb-8">
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">Каталог</h1>
@@ -351,9 +406,7 @@ const Catalog = () => {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <ProductCardSkeletonGrid count={12} />
         ) : sortedProducts.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">Товары не найдены</p>
