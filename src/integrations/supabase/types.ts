@@ -17,9 +17,11 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          email: string | null
           id: string
           items: Json
           notes: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
           shipping_address: string | null
           status: Database["public"]["Enums"]["order_status"]
           total: number
@@ -28,9 +30,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email?: string | null
           id?: string
           items: Json
           notes?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total: number
@@ -39,9 +43,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email?: string | null
           id?: string
           items?: Json
           notes?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
           shipping_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           total?: number
@@ -141,6 +147,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "user"
       order_status: "pending" | "processing" | "completed" | "cancelled"
+      payment_method: "online" | "cash"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -270,6 +277,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "user"],
       order_status: ["pending", "processing", "completed", "cancelled"],
+      payment_method: ["online", "cash"],
     },
   },
 } as const
