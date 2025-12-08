@@ -11,7 +11,6 @@ export interface ShopifyProduct {
     handle: string;
     productType: string;
     tags: string[];
-    totalInventory: number;
     priceRange: {
       minVariantPrice: {
         amount: string;
@@ -46,7 +45,6 @@ export interface ShopifyProduct {
             currencyCode: string;
           } | null;
           availableForSale: boolean;
-          quantityAvailable: number;
           selectedOptions: Array<{
             name: string;
             value: string;
@@ -72,7 +70,6 @@ export const STOREFRONT_QUERY = `
           handle
           productType
           tags
-          totalInventory
           priceRange {
             minVariantPrice {
               amount
@@ -107,7 +104,6 @@ export const STOREFRONT_QUERY = `
                   currencyCode
                 }
                 availableForSale
-                quantityAvailable
                 selectedOptions {
                   name
                   value
@@ -124,6 +120,11 @@ export const STOREFRONT_QUERY = `
     }
   }
 `;
+
+// Hardcoded inventory for specific products (Shopify Storefront API doesn't expose inventory without special scope)
+export const PRODUCT_INVENTORY: Record<string, number> = {
+  "макси": 10,
+};
 
 // Sale product handles for badges
 export const SALE_PRODUCT_HANDLES = [

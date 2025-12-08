@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, Flame, Gift, Package } from "lucide-react";
 import { Button } from "./ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY } from "@/lib/shopify";
 
 const heroSlides = [
   {
@@ -196,9 +196,9 @@ export const SaleProducts = () => {
               const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
               const image = product.node.images.edges[0]?.node.url;
               
-              // Inventory - for "Макси" product show 10, otherwise use totalInventory
-              const inventory = product.node.handle === "макси-трусы" ? 10 : product.node.totalInventory;
-              const showLowStock = inventory > 0 && inventory <= 15;
+              // Use hardcoded inventory from PRODUCT_INVENTORY
+              const inventory = PRODUCT_INVENTORY[product.node.handle];
+              const showLowStock = inventory !== undefined && inventory > 0;
 
               return (
                 <Link

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft, Package } from "lucide-react";
@@ -119,9 +119,9 @@ const ProductDetail = () => {
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
   
-  // Inventory - for "Макси" product show 10, otherwise use totalInventory
-  const inventory = node.handle === "макси-трусы" ? 10 : node.totalInventory;
-  const showLowStock = inventory > 0 && inventory <= 15;
+  // Use hardcoded inventory from PRODUCT_INVENTORY
+  const inventory = PRODUCT_INVENTORY[node.handle];
+  const showLowStock = inventory !== undefined && inventory > 0;
 
   return (
     <div className="min-h-screen bg-background">
