@@ -49,14 +49,14 @@ const Index = () => {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
-              { name: "Сорочки", emoji: "👗", color: "from-pink-500/20 to-rose-500/10" },
-              { name: "Трусы", emoji: "💝", color: "from-purple-500/20 to-pink-500/10" },
-              { name: "Бюстгальтеры", emoji: "🎀", color: "from-red-500/20 to-orange-500/10" },
-              { name: "Наборы", emoji: "✨", color: "from-amber-500/20 to-yellow-500/10" },
+              { name: "Сорочки", value: "сорочки", emoji: "👗", color: "from-pink-500/20 to-rose-500/10" },
+              { name: "Трусы", value: "трусы", emoji: "💝", color: "from-purple-500/20 to-pink-500/10" },
+              { name: "Бюстгальтеры", value: "бюстгальтеры", emoji: "🎀", color: "from-red-500/20 to-orange-500/10" },
+              { name: "Наборы", value: "наборы", emoji: "✨", color: "from-amber-500/20 to-yellow-500/10" },
             ].map((category) => (
               <Link
                 key={category.name}
-                to="/catalog"
+                to={`/catalog?category=${encodeURIComponent(category.value)}`}
                 className={`group relative p-6 md:p-8 rounded-2xl bg-gradient-to-br ${category.color} border border-border/50 hover:border-primary/50 hover:shadow-hover transition-all overflow-hidden`}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-background/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
