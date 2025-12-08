@@ -6,6 +6,8 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { HeroCarousel, SaleProducts } from "@/components/HeroCarousel";
 import { PromoBanner } from "@/components/PromoBanner";
+import { Bestsellers } from "@/components/Bestsellers";
+import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
 import { ArrowRight, Sparkles, Star, TrendingUp } from "lucide-react";
 
@@ -82,6 +84,12 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Bestsellers */}
+      <Bestsellers />
+
+      {/* Recently Viewed */}
+      <RecentlyViewed />
 
       {/* Featured Products */}
       <section className="py-10 md:py-16 relative">

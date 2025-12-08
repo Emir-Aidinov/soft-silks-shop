@@ -4,11 +4,13 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY, PRODUCT_DISCOUNTS } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
+import { useRecentlyViewedStore } from "@/stores/recentlyViewedStore";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProductReviews } from "@/components/ProductReviews";
 import { RelatedProducts } from "@/components/RelatedProducts";
+import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { SizeChart } from "@/components/SizeChart";
 
 const ProductDetail = () => {
@@ -21,6 +23,7 @@ const ProductDetail = () => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
   const addItem = useCartStore(state => state.addItem);
+  const addToRecentlyViewed = useRecentlyViewedStore(state => state.addProduct);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -40,6 +43,17 @@ const ProductDetail = () => {
             initialOptions[opt.name] = opt.value;
           });
           setSelectedOptions(initialOptions);
+          
+          // Add to recently viewed
+          const productImage = foundProduct.node.images.edges[0]?.node.url || "/placeholder.svg";
+          const productPrice = parseFloat(foundProduct.node.priceRange.minVariantPrice.amount);
+          addToRecentlyViewed({
+            handle: foundProduct.node.handle,
+            title: foundProduct.node.title,
+            image: productImage,
+            price: productPrice,
+            viewedAt: Date.now()
+          });
         }
       } catch (error) {
         console.error('Error fetching product:', error);
@@ -50,7 +64,7 @@ const ProductDetail = () => {
 
     fetchProduct();
     setAddedToCart(false);
-  }, [handle]);
+  }, [handle, addToRecentlyViewed]);
 
   const handleOptionChange = (optionName: string, value: string) => {
     const newOptions = { ...selectedOptions, [optionName]: value };
@@ -292,6 +306,9 @@ const ProductDetail = () => {
             currentProductType={node.productType}
           />
         </div>
+
+        {/* Recently Viewed */}
+        <RecentlyViewed />
       </main>
     </div>
   );

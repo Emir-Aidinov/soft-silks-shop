@@ -65,16 +65,17 @@ export default function Checkout() {
     loadProfile();
   }, []);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (promoCode: string | null, promoDiscount: number) => {
     setLoading(true);
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      const totalPrice = items.reduce(
+      const subtotal = items.reduce(
         (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
         0
       );
+      const totalPrice = subtotal - promoDiscount;
 
       const orderItems = items.map((item) => ({
         productId: item.product.node.id,
@@ -97,7 +98,7 @@ export default function Checkout() {
           total: totalPrice,
           items: orderItems,
           shipping_address: shippingAddress,
-          notes: address.notes || null,
+          notes: address.notes ? `${address.notes}${promoCode ? ` | Промокод: ${promoCode}` : ''}` : (promoCode ? `Промокод: ${promoCode}` : null),
           payment_method: paymentMethod,
           email: contact.email,
           status: "pending",
