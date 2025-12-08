@@ -124,6 +124,15 @@ export const STOREFRONT_QUERY = `
 // Hardcoded inventory for specific products (Shopify Storefront API doesn't expose inventory without special scope)
 export const PRODUCT_INVENTORY: Record<string, number> = {
   "макси": 10,
+  "боди": 5,
+  "бразильяно": 8,
+  "бралетт": 12,
+  "классический-набор": 3,
+  "корсет": 7,
+  "кружевная-сорочка": 15,
+  "пеньюар": 4,
+  "пушап": 6,
+  "сорочка-на-бретелях": 9,
 };
 
 // Sale product handles for badges
