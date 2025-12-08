@@ -204,10 +204,10 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         )}
         
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-lg font-bold text-primary">{formatPrice(price)}</span>
           {hasDiscount && (
             <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAtPrice)}</span>
           )}
+          <span className={`text-lg font-bold ${hasDiscount ? 'text-destructive' : 'text-primary'}`}>{formatPrice(price)}</span>
         </div>
         
         <Button 
