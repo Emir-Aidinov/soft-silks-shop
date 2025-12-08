@@ -10,6 +10,7 @@ export interface ShopifyProduct {
     description: string;
     handle: string;
     productType: string;
+    tags: string[];
     priceRange: {
       minVariantPrice: {
         amount: string;
@@ -59,8 +60,8 @@ export interface ShopifyProduct {
 }
 
 export const STOREFRONT_QUERY = `
-  query GetProducts($first: Int!) {
-    products(first: $first) {
+  query GetProducts($first: Int!, $query: String) {
+    products(first: $first, query: $query) {
       edges {
         node {
           id
@@ -68,6 +69,7 @@ export const STOREFRONT_QUERY = `
           description
           handle
           productType
+          tags
           priceRange {
             minVariantPrice {
               amount
@@ -118,6 +120,14 @@ export const STOREFRONT_QUERY = `
     }
   }
 `;
+
+// Sale product handles for badges
+export const SALE_PRODUCT_HANDLES = [
+  "сорочка-на-бретелях",
+  "кружевная-сорочка", 
+  "бралетт",
+  "классический-набор",
+];
 
 const CART_CREATE_MUTATION = `
   mutation cartCreate($input: CartInput!) {

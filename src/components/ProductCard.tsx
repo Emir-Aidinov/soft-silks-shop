@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { ShopifyProduct, formatPrice } from "@/lib/shopify";
+import { ShopifyProduct, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavoritesStore } from "@/stores/favoritesStore";
 import { toast } from "sonner";
@@ -66,6 +66,7 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     : null;
   const hasDiscount = compareAtPrice && compareAtPrice > price;
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
+  const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -116,6 +117,13 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           {hasDiscount && (
             <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground">
               -{discountPercent}%
+            </Badge>
+          )}
+          
+          {/* Hit badge */}
+          {isHit && (
+            <Badge className="absolute top-10 left-2 bg-yellow-500 text-yellow-950 text-xs">
+              🔥 ХИТ
             </Badge>
           )}
           
