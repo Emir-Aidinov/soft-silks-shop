@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
-import { Loader2, SlidersHorizontal, X } from "lucide-react";
+import { Loader2, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type SortOption = "default" | "price-asc" | "price-desc" | "newest";
 
 const categories = [
   { name: "Все", value: "" },
@@ -30,6 +39,7 @@ const Catalog = () => {
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>("default");
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -102,6 +112,20 @@ const Catalog = () => {
       );
 
     return categoryMatch && colorMatch && sizeMatch;
+  });
+
+  // Sort products
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortBy) {
+      case "price-asc":
+        return parseFloat(a.node.priceRange.minVariantPrice.amount) - parseFloat(b.node.priceRange.minVariantPrice.amount);
+      case "price-desc":
+        return parseFloat(b.node.priceRange.minVariantPrice.amount) - parseFloat(a.node.priceRange.minVariantPrice.amount);
+      case "newest":
+        return b.node.id.localeCompare(a.node.id);
+      default:
+        return 0;
+    }
   });
 
   const FilterContent = () => (
@@ -232,19 +256,35 @@ const Catalog = () => {
             </div>
           )}
 
-          {/* Active filters count */}
-          {filteredProducts.length > 0 && (
-            <p className="text-sm text-muted-foreground mb-4">
-              Найдено товаров: {filteredProducts.length}
-            </p>
-          )}
+          {/* Sorting and count */}
+          <div className="flex items-center justify-between mb-4">
+            {sortedProducts.length > 0 && (
+              <p className="text-sm text-muted-foreground">
+                Найдено товаров: {sortedProducts.length}
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+              <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                <SelectTrigger className="w-[160px] md:w-[180px]">
+                  <SelectValue placeholder="Сортировка" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">По умолчанию</SelectItem>
+                  <SelectItem value="price-asc">Сначала дешевые</SelectItem>
+                  <SelectItem value="price-desc">Сначала дорогие</SelectItem>
+                  <SelectItem value="newest">Новинки</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : filteredProducts.length === 0 ? (
+        ) : sortedProducts.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">Товары не найдены</p>
             <p className="text-sm text-muted-foreground mt-2">
@@ -253,7 +293,7 @@ const Catalog = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
-            {filteredProducts.map((product) => (
+            {sortedProducts.map((product) => (
               <ProductCard key={product.node.id} product={product} />
             ))}
           </div>
