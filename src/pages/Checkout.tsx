@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useLoyaltyStore, POINTS_PER_SOM } from "@/stores/loyaltyStore";
 
 const STEPS = ["Контакты", "Адрес", "Оплата", "Проверка"];
 
@@ -107,6 +108,30 @@ export default function Checkout() {
         .single();
 
       if (error) throw error;
+
+      // Add loyalty points (1% of order total)
+      if (user) {
+        const pointsToAdd = Math.floor(totalPrice * POINTS_PER_SOM);
+        if (pointsToAdd > 0) {
+          const { addPoints } = useLoyaltyStore.getState();
+          await addPoints(pointsToAdd, `Заказ #${order.id.slice(0, 8)}`, order.id);
+        }
+      }
+
+      // Send order confirmation email
+      try {
+        await supabase.functions.invoke('send-order-email', {
+          body: {
+            orderId: order.id,
+            email: contact.email,
+            type: 'created',
+            total: totalPrice,
+          },
+        });
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // Don't fail the order if email fails
+      }
 
       if (paymentMethod === 'online') {
         // Create Shopify checkout and redirect

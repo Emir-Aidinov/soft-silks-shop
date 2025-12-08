@@ -88,12 +88,31 @@ export default function Orders() {
 
   const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
+      // Get order to find email
+      const order = orders.find(o => o.id === orderId);
+      
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // Send email notification about status change
+      if (order?.email) {
+        try {
+          await supabase.functions.invoke('send-order-email', {
+            body: {
+              orderId: orderId,
+              email: order.email,
+              type: 'status_updated',
+              status: newStatus,
+            },
+          });
+        } catch (emailError) {
+          console.error('Failed to send status email:', emailError);
+        }
+      }
 
       toast.success('Статус заказа обновлен');
       fetchOrders();

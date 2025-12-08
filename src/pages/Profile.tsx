@@ -8,9 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Package, Gift } from "lucide-react";
+import { Loader2, Package, Gift, Coins } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ReferralProgram } from "@/components/ReferralProgram";
+import { LoyaltyProgram } from "@/components/LoyaltyProgram";
 import { useReferralStore } from "@/stores/referralStore";
 
 interface Profile {
@@ -151,9 +152,13 @@ export default function Profile() {
         <h1 className="text-3xl font-bold mb-6">Личный кабинет</h1>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Профиль</TabsTrigger>
             <TabsTrigger value="orders">Заказы</TabsTrigger>
+            <TabsTrigger value="loyalty" className="flex items-center gap-1">
+              <Coins className="h-4 w-4" />
+              Баллы
+            </TabsTrigger>
             <TabsTrigger value="referral" className="flex items-center gap-1">
               <Gift className="h-4 w-4" />
               Рефералы
@@ -252,6 +257,10 @@ export default function Profile() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="loyalty">
+            <LoyaltyProgram />
           </TabsContent>
 
           <TabsContent value="referral">
