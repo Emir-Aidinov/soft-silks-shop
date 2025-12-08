@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ShopifyProduct, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavoritesStore } from "@/stores/favoritesStore";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Heart, Star } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, ChevronRight, Heart, Star, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ProductCardProps {
@@ -37,7 +35,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     fetchRating();
   }, [node.handle]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const firstVariant = node.variants.edges[0]?.node;
     if (!firstVariant) return;
 
@@ -67,6 +67,10 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const hasDiscount = compareAtPrice && compareAtPrice > price;
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
+  
+  // Inventory - for "Макси" product show 10, otherwise use totalInventory
+  const inventory = node.handle === "макси-трусы" ? 10 : node.totalInventory;
+  const showLowStock = inventory > 0 && inventory <= 15;
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -94,112 +98,127 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   };
 
   return (
-    <Card className="group overflow-hidden transition-all hover:shadow-hover animate-fade-in">
-      <Link to={`/product/${node.handle}`}>
-        <div className="aspect-[3/4] overflow-hidden bg-secondary/20 relative">
-          {/* Favorite button */}
-          <button
-            onClick={handleFavoriteClick}
-            className="absolute top-2 right-2 z-10 w-9 h-9 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
-            aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
-          >
-            <Heart 
-              className={`h-5 w-5 transition-colors ${isFavorite ? "fill-destructive text-destructive" : "text-muted-foreground hover:text-destructive"}`} 
-            />
-          </button>
-          <img
-            src={currentImage}
-            alt={node.title}
-            className="h-full w-full object-cover transition-all duration-300 group-hover:scale-105"
+    <Link
+      to={`/product/${node.handle}`}
+      className="group relative bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-hover transition-all border border-border/50 animate-fade-in"
+    >
+      <div className="aspect-[3/4] overflow-hidden relative">
+        {/* Favorite button */}
+        <button
+          onClick={handleFavoriteClick}
+          className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
+          aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
+        >
+          <Heart 
+            className={`h-5 w-5 transition-colors ${isFavorite ? "fill-destructive text-destructive" : "text-muted-foreground hover:text-destructive"}`} 
           />
-          
-          {/* Discount badge */}
-          {hasDiscount && (
-            <Badge className="absolute top-2 left-2 bg-destructive text-destructive-foreground">
+        </button>
+        
+        <img
+          src={currentImage}
+          alt={node.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
+        
+        <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        {/* Discount badge */}
+        {hasDiscount && (
+          <div className="absolute top-3 left-3">
+            <span className="bg-destructive text-destructive-foreground text-sm font-bold px-3 py-1 rounded-full shadow-lg">
               -{discountPercent}%
-            </Badge>
-          )}
-          
-          {/* Hit badge */}
-          {isHit && (
-            <Badge className="absolute top-10 left-2 bg-yellow-500 text-yellow-950 text-xs">
+            </span>
+          </div>
+        )}
+        
+        {/* Hit badge */}
+        {isHit && (
+          <div className={`absolute ${hasDiscount ? 'top-12' : 'top-3'} left-3`}>
+            <span className="bg-yellow-500 text-yellow-950 text-xs font-bold px-2 py-1 rounded-full">
               🔥 ХИТ
-            </Badge>
-          )}
-          
-          {/* Navigation arrows */}
-          {hasMultipleImages && (
-            <>
+            </span>
+          </div>
+        )}
+        
+        {/* Low stock badge */}
+        {showLowStock && (
+          <div className={`absolute ${hasDiscount && isHit ? 'top-20' : hasDiscount || isHit ? 'top-12' : 'top-3'} left-3`}>
+            <span className="bg-orange-500 text-orange-950 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+              <Package className="h-3 w-3" />
+              Осталось {inventory} шт.
+            </span>
+          </div>
+        )}
+        
+        {/* Navigation arrows */}
+        {hasMultipleImages && (
+          <>
+            <button
+              onClick={handlePrevImage}
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+              aria-label="Предыдущее фото"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleNextImage}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+              aria-label="Следующее фото"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </>
+        )}
+        
+        {/* Dots indicator */}
+        {hasMultipleImages && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {images.map((_, index) => (
               <button
-                onClick={handlePrevImage}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                aria-label="Предыдущее фото"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                onClick={handleNextImage}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                aria-label="Следующее фото"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </>
-          )}
-          
-          {/* Dots indicator */}
-          {hasMultipleImages && (
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {images.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => handleDotClick(e, index)}
-                  className={`h-2 rounded-full transition-all ${
-                    index === currentImageIndex 
-                      ? "bg-primary w-4" 
-                      : "bg-background/60 w-2 hover:bg-background/80"
-                  }`}
-                  aria-label={`Фото ${index + 1}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </Link>
-      <CardContent className="p-4">
-        <Link to={`/product/${node.handle}`}>
-          <h3 className="font-medium mb-2 line-clamp-2 hover:text-primary transition-colors">
-            {node.title}
-          </h3>
-        </Link>
+                key={index}
+                onClick={(e) => handleDotClick(e, index)}
+                className={`h-2 rounded-full transition-all ${
+                  index === currentImageIndex 
+                    ? "bg-primary w-4" 
+                    : "bg-background/60 w-2 hover:bg-background/80"
+                }`}
+                aria-label={`Фото ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+      
+      <div className="p-4 bg-gradient-to-t from-card to-card/80">
+        <h3 className="font-semibold truncate group-hover:text-primary transition-colors">
+          {node.title}
+        </h3>
+        
         {/* Rating */}
         {rating && (
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center gap-1 mt-1">
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
             <span className="text-sm font-medium">{rating.avg}</span>
             <span className="text-xs text-muted-foreground">({rating.count})</span>
           </div>
         )}
-        <div className="flex items-center gap-2">
-          <p className="text-lg font-semibold text-primary">
-            {formatPrice(price)}
-          </p>
+        
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-lg font-bold text-primary">{formatPrice(price)}</span>
           {hasDiscount && (
-            <p className="text-sm text-muted-foreground line-through">
-              {formatPrice(compareAtPrice)}
-            </p>
+            <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAtPrice)}</span>
           )}
         </div>
-      </CardContent>
-      <CardFooter className="p-4 pt-0">
+        
         <Button 
           onClick={handleAddToCart}
-          className="w-full"
+          className="w-full mt-3"
           variant="default"
+          size="sm"
         >
           В корзину
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </Link>
   );
 };

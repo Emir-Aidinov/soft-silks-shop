@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProductReviews } from "@/components/ProductReviews";
 import { RelatedProducts } from "@/components/RelatedProducts";
@@ -118,6 +118,10 @@ const ProductDetail = () => {
   const hasDiscount = compareAtPrice && compareAtPrice > price;
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
+  
+  // Inventory - for "Макси" product show 10, otherwise use totalInventory
+  const inventory = node.handle === "макси-трусы" ? 10 : node.totalInventory;
+  const showLowStock = inventory > 0 && inventory <= 15;
 
   return (
     <div className="min-h-screen bg-background">
@@ -210,6 +214,15 @@ const ProductDetail = () => {
                   </p>
                 )}
               </div>
+              {/* Low stock indicator */}
+              {showLowStock && (
+                <div className="mt-3">
+                  <span className="inline-flex items-center gap-1.5 bg-orange-500 text-orange-950 text-sm font-bold px-3 py-1.5 rounded-full">
+                    <Package className="h-4 w-4" />
+                    Осталось {inventory} шт.
+                  </span>
+                </div>
+              )}
             </div>
 
             {node.description && (

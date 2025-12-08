@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Flame, Gift } from "lucide-react";
+import { Sparkles, Flame, Gift, Package } from "lucide-react";
 import { Button } from "./ui/button";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
 
@@ -195,6 +195,10 @@ export const SaleProducts = () => {
               const hasDiscount = compareAtPrice && compareAtPrice > price;
               const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
               const image = product.node.images.edges[0]?.node.url;
+              
+              // Inventory - for "Макси" product show 10, otherwise use totalInventory
+              const inventory = product.node.handle === "макси-трусы" ? 10 : product.node.totalInventory;
+              const showLowStock = inventory > 0 && inventory <= 15;
 
               return (
                 <Link
@@ -222,6 +226,15 @@ export const SaleProducts = () => {
                       🔥 ХИТ
                     </span>
                   </div>
+                  {/* Low stock badge */}
+                  {showLowStock && (
+                    <div className={`absolute ${hasDiscount ? 'top-12' : 'top-3'} left-3`}>
+                      <span className="bg-orange-500 text-orange-950 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                        <Package className="h-3 w-3" />
+                        Осталось {inventory} шт.
+                      </span>
+                    </div>
+                  )}
                   <div className="p-4 bg-gradient-to-t from-card to-card/80">
                     <h3 className="font-semibold truncate">{product.node.title}</h3>
                     <div className="flex items-center gap-2 mt-1">
