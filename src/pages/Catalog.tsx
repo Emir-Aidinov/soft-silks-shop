@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, PRODUCT_INVENTORY } from "@/lib/shopify";
-import { Loader2, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
+import { Loader2, SlidersHorizontal, X, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const PRODUCTS_PER_PAGE = 12;
 
 type SortOption = "default" | "price-asc" | "price-desc" | "newest";
 type StockFilter = "all" | "in-stock" | "out-of-stock";
@@ -53,6 +55,7 @@ const Catalog = () => {
   const selectedSizes = searchParams.get("sizes")?.split(",").filter(Boolean) || [];
   const sortBy = (searchParams.get("sort") as SortOption) || "default";
   const stockFilter = (searchParams.get("stock") as StockFilter) || "all";
+  const currentPage = parseInt(searchParams.get("page") || "1", 10);
 
   // Update URL with filters
   const updateFilters = (updates: Record<string, string | string[] | null>) => {
@@ -71,22 +74,23 @@ const Catalog = () => {
     setSearchParams(newParams, { replace: true });
   };
 
-  const setSelectedCategory = (value: string) => updateFilters({ category: value });
-  const setSortBy = (value: SortOption) => updateFilters({ sort: value === "default" ? null : value });
-  const setStockFilter = (value: StockFilter) => updateFilters({ stock: value === "all" ? null : value });
+  const setSelectedCategory = (value: string) => updateFilters({ category: value, page: null });
+  const setSortBy = (value: SortOption) => updateFilters({ sort: value === "default" ? null : value, page: null });
+  const setStockFilter = (value: StockFilter) => updateFilters({ stock: value === "all" ? null : value, page: null });
+  const setPage = (page: number) => updateFilters({ page: page === 1 ? null : String(page) });
 
   const toggleColor = (color: string) => {
     const newColors = selectedColors.includes(color)
       ? selectedColors.filter(c => c !== color)
       : [...selectedColors, color];
-    updateFilters({ colors: newColors });
+    updateFilters({ colors: newColors, page: null });
   };
 
   const toggleSize = (size: string) => {
     const newSizes = selectedSizes.includes(size)
       ? selectedSizes.filter(s => s !== size)
       : [...selectedSizes, size];
-    updateFilters({ sizes: newSizes });
+    updateFilters({ sizes: newSizes, page: null });
   };
 
   const clearFilters = () => {
@@ -167,6 +171,12 @@ const Catalog = () => {
         return 0;
     }
   });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE);
+  const validCurrentPage = Math.min(Math.max(1, currentPage), Math.max(1, totalPages));
+  const startIndex = (validCurrentPage - 1) * PRODUCTS_PER_PAGE;
+  const paginatedProducts = sortedProducts.slice(startIndex, startIndex + PRODUCTS_PER_PAGE);
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -352,11 +362,72 @@ const Catalog = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
-            {sortedProducts.map((product) => (
-              <ProductCard key={product.node.id} product={product} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
+              {paginatedProducts.map((product) => (
+                <ProductCard key={product.node.id} product={product} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPage(validCurrentPage - 1)}
+                  disabled={validCurrentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first, last, current, and adjacent pages
+                    const showPage = 
+                      page === 1 || 
+                      page === totalPages || 
+                      Math.abs(page - validCurrentPage) <= 1;
+                    
+                    const showEllipsis = 
+                      (page === 2 && validCurrentPage > 3) ||
+                      (page === totalPages - 1 && validCurrentPage < totalPages - 2);
+
+                    if (showEllipsis && !showPage) {
+                      return (
+                        <span key={page} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
+                      );
+                    }
+
+                    if (!showPage) return null;
+
+                    return (
+                      <Button
+                        key={page}
+                        variant={page === validCurrentPage ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => setPage(page)}
+                        className="w-10 h-10"
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setPage(validCurrentPage + 1)}
+                  disabled={validCurrentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>
