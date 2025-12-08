@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ProductReviews } from "@/components/ProductReviews";
+import { RelatedProducts } from "@/components/RelatedProducts";
 
 const ProductDetail = () => {
   const { handle } = useParams();
@@ -15,6 +17,7 @@ const ProductDetail = () => {
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [addedToCart, setAddedToCart] = useState(false);
   const addItem = useCartStore(state => state.addItem);
 
   useEffect(() => {
@@ -44,6 +47,7 @@ const ProductDetail = () => {
     };
 
     fetchProduct();
+    setAddedToCart(false);
   }, [handle]);
 
   const handleOptionChange = (optionName: string, value: string) => {
@@ -72,9 +76,12 @@ const ProductDetail = () => {
     };
     
     addItem(cartItem);
+    setAddedToCart(true);
     toast.success("Добавлено в корзину", {
       description: product.node.title,
     });
+    
+    setTimeout(() => setAddedToCart(false), 2000);
   };
 
   if (loading) {
@@ -117,15 +124,15 @@ const ProductDetail = () => {
       <main className="container py-4 md:py-8">
         <div className="grid md:grid-cols-2 gap-6 lg:gap-12">
           <div className="space-y-4">
-            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-secondary/20 relative">
+            <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-secondary/20 relative group">
               <img
                 src={currentImage}
                 alt={node.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               
               {hasDiscount && (
-                <Badge className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-lg px-3 py-1">
+                <Badge className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-lg px-3 py-1 animate-pulse">
                   -{discountPercent}%
                 </Badge>
               )}
@@ -135,14 +142,14 @@ const ProductDetail = () => {
                 <>
                   <button
                     onClick={() => setSelectedImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1))}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/90 hover:bg-background shadow-soft flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
                     aria-label="Предыдущее фото"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
                   <button
                     onClick={() => setSelectedImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1))}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/90 hover:bg-background shadow-soft flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
                     aria-label="Следующее фото"
                   >
                     <ChevronRight className="h-5 w-5" />
@@ -158,8 +165,8 @@ const ProductDetail = () => {
                   <button
                     key={idx} 
                     onClick={() => setSelectedImageIndex(idx)}
-                    className={`aspect-square rounded-md overflow-hidden bg-secondary/20 border-2 transition-all ${
-                      idx === selectedImageIndex ? 'border-primary' : 'border-transparent hover:border-primary/50'
+                    className={`aspect-square rounded-lg overflow-hidden bg-secondary/20 border-2 transition-all hover:scale-105 ${
+                      idx === selectedImageIndex ? 'border-primary ring-2 ring-primary/30' : 'border-transparent hover:border-primary/50'
                     }`}
                   >
                     <img
@@ -175,13 +182,13 @@ const ProductDetail = () => {
 
           <div className="space-y-6">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">{node.title}</h1>
+              <h1 className="text-2xl md:text-4xl font-bold mb-3">{node.title}</h1>
               <div className="flex items-center gap-3">
-                <p className="text-2xl md:text-3xl font-semibold text-primary">
+                <p className="text-3xl md:text-4xl font-bold text-primary">
                   {formatPrice(price)}
                 </p>
                 {hasDiscount && (
-                  <p className="text-lg text-muted-foreground line-through">
+                  <p className="text-xl text-muted-foreground line-through">
                     {formatPrice(compareAtPrice)}
                   </p>
                 )}
@@ -189,7 +196,7 @@ const ProductDetail = () => {
             </div>
 
             {node.description && (
-              <div>
+              <div className="bg-secondary/30 rounded-xl p-4">
                 <h2 className="font-semibold mb-2">Описание</h2>
                 <p className="text-muted-foreground">{node.description}</p>
               </div>
@@ -197,16 +204,16 @@ const ProductDetail = () => {
 
             {node.options.map((option) => (
               <div key={option.name}>
-                <label className="block font-semibold mb-2">{option.name}</label>
+                <label className="block font-semibold mb-3">{option.name}</label>
                 <div className="flex flex-wrap gap-2">
                   {option.values.map((value) => (
                     <button
                       key={value}
                       onClick={() => handleOptionChange(option.name, value)}
-                      className={`px-4 py-2 rounded-md border transition-colors ${
+                      className={`px-5 py-3 rounded-xl border-2 font-medium transition-all ${
                         selectedOptions[option.name] === value
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border hover:border-primary"
+                          ? "border-primary bg-primary text-primary-foreground shadow-soft"
+                          : "border-border hover:border-primary hover:bg-primary/5"
                       }`}
                     >
                       {value}
@@ -219,12 +226,37 @@ const ProductDetail = () => {
             <Button
               onClick={handleAddToCart}
               size="lg"
-              className="w-full"
+              className={`w-full h-14 text-lg shadow-hover transition-all ${addedToCart ? 'bg-green-500 hover:bg-green-600' : ''}`}
               disabled={!selectedVariant?.availableForSale}
             >
-              {selectedVariant?.availableForSale ? "Добавить в корзину" : "Нет в наличии"}
+              {addedToCart ? (
+                <>
+                  <Check className="mr-2 h-5 w-5" />
+                  Добавлено!
+                </>
+              ) : selectedVariant?.availableForSale ? (
+                <>
+                  <ShoppingBag className="mr-2 h-5 w-5" />
+                  Добавить в корзину
+                </>
+              ) : (
+                "Нет в наличии"
+              )}
             </Button>
           </div>
+        </div>
+
+        {/* Reviews Section */}
+        <div className="mt-12 md:mt-16">
+          <ProductReviews productId={node.id} />
+        </div>
+
+        {/* Related Products */}
+        <div className="mt-12 md:mt-16">
+          <RelatedProducts 
+            currentProductId={node.id} 
+            currentProductType={node.productType}
+          />
         </div>
       </main>
     </div>
