@@ -35,13 +35,9 @@ const Catalog = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 10 });
-        // ----> ДОБАВЬТЕ ЭТУ СТРОКУ <----
-        console.log("ОТВЕТ ОТ SHOPIFY:", data);
+        const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 50 });
         setProducts(data.data.products.edges);
       } catch (error) {
-        // ----> И ЭТУ ТОЖЕ <----
-        console.error("ОШИБКА ЗАПРОСА SHOPIFY:", error);
         console.error('Error fetching products:', error);
       } finally {
         setLoading(false);
@@ -51,7 +47,6 @@ const Catalog = () => {
     fetchProducts();
   }, []);
 
-  // Extract all unique colors and sizes from products
   const allColors = Array.from(
     new Set(
       products.flatMap(p => 
@@ -118,8 +113,11 @@ const Catalog = () => {
           {categories.map((category) => (
             <button
               key={category.value}
-              onClick={() => setSelectedCategory(category.value)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              onClick={() => {
+                setSelectedCategory(category.value);
+                if (isMobile) setIsFilterOpen(false);
+              }}
+              className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-sm font-medium transition-colors ${
                 selectedCategory === category.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -140,7 +138,7 @@ const Catalog = () => {
               <button
                 key={color}
                 onClick={() => toggleColor(color)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-sm font-medium transition-colors ${
                   selectedColors.includes(color)
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -162,7 +160,7 @@ const Catalog = () => {
               <button
                 key={size}
                 onClick={() => toggleSize(size)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-sm font-medium transition-colors ${
                   selectedSizes.includes(size)
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -193,10 +191,10 @@ const Catalog = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container py-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold">Каталог</h1>
+      <main className="container py-4 md:py-8 px-4">
+        <div className="mb-6 md:mb-8">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold">Каталог</h1>
             
             {/* Mobile filter button */}
             {isMobile && (
@@ -254,7 +252,7 @@ const Catalog = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
             {filteredProducts.map((product) => (
               <ProductCard key={product.node.id} product={product} />
             ))}
