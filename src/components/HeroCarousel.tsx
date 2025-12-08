@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Sparkles, Flame, Gift } from "lucide-react";
+import { Sparkles, Flame, Gift } from "lucide-react";
 import { Button } from "./ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
 
 const heroSlides = [
   {
@@ -124,16 +124,8 @@ export const HeroCarousel = () => {
   );
 };
 
-// Sale products with manual discounts for demo
-const SALE_PRODUCT_HANDLES = [
-  { handle: "сорочка-на-бретелях", discount: 20 },
-  { handle: "кружевная-сорочка", discount: 15 },
-  { handle: "бралетт", discount: 25 },
-  { handle: "классический-набор", discount: 30 },
-];
-
 export const SaleProducts = () => {
-  const [products, setProducts] = useState<(ShopifyProduct & { discountPercent: number })[]>([]);
+  const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -142,14 +134,10 @@ export const SaleProducts = () => {
         const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
         const allProducts = data.data.products.edges as ShopifyProduct[];
         
-        // Get sale products with their discounts
-        const saleProducts = SALE_PRODUCT_HANDLES.map(sale => {
-          const product = allProducts.find(p => p.node.handle === sale.handle);
-          if (product) {
-            return { ...product, discountPercent: sale.discount };
-          }
-          return null;
-        }).filter(Boolean) as (ShopifyProduct & { discountPercent: number })[];
+        // Get sale products based on handles
+        const saleProducts = allProducts.filter(p => 
+          SALE_PRODUCT_HANDLES.includes(p.node.handle)
+        );
         
         setProducts(saleProducts);
       } catch (error) {
@@ -200,8 +188,12 @@ export const SaleProducts = () => {
         {products.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {products.map((product) => {
-              const originalPrice = parseFloat(product.node.priceRange.minVariantPrice.amount);
-              const discountedPrice = Math.round(originalPrice * (1 - product.discountPercent / 100));
+              const price = parseFloat(product.node.priceRange.minVariantPrice.amount);
+              const compareAtPrice = product.node.compareAtPriceRange?.minVariantPrice?.amount 
+                ? parseFloat(product.node.compareAtPriceRange.minVariantPrice.amount) 
+                : null;
+              const hasDiscount = compareAtPrice && compareAtPrice > price;
+              const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
               const image = product.node.images.edges[0]?.node.url;
 
               return (
@@ -218,11 +210,13 @@ export const SaleProducts = () => {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-destructive/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-destructive text-destructive-foreground text-sm font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
-                      -{product.discountPercent}%
-                    </span>
-                  </div>
+                  {hasDiscount && (
+                    <div className="absolute top-3 left-3">
+                      <span className="bg-destructive text-destructive-foreground text-sm font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
+                        -{discountPercent}%
+                      </span>
+                    </div>
+                  )}
                   <div className="absolute top-3 right-3">
                     <span className="bg-yellow-500 text-yellow-950 text-xs font-bold px-2 py-1 rounded-full">
                       🔥 ХИТ
@@ -231,8 +225,10 @@ export const SaleProducts = () => {
                   <div className="p-4 bg-gradient-to-t from-card to-card/80">
                     <h3 className="font-semibold truncate">{product.node.title}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-lg font-bold text-destructive">{formatPrice(discountedPrice)}</span>
-                      <span className="text-sm text-muted-foreground line-through">{formatPrice(originalPrice)}</span>
+                      <span className="text-lg font-bold text-primary">{formatPrice(price)}</span>
+                      {hasDiscount && (
+                        <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAtPrice)}</span>
+                      )}
                     </div>
                   </div>
                 </Link>

@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
-import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ProductReviews } from "@/components/ProductReviews";
 import { RelatedProducts } from "@/components/RelatedProducts";
 
 const ProductDetail = () => {
   const { handle } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState<ShopifyProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
@@ -116,12 +117,23 @@ const ProductDetail = () => {
     : null;
   const hasDiscount = compareAtPrice && compareAtPrice > price;
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
+  const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <main className="container py-4 md:py-8">
+        {/* Back button */}
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(-1)}
+          className="mb-4 -ml-2 hover:bg-secondary/50"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Назад
+        </Button>
+
         <div className="grid md:grid-cols-2 gap-6 lg:gap-12">
           <div className="space-y-4">
             <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-secondary/20 relative group">
@@ -134,6 +146,11 @@ const ProductDetail = () => {
               {hasDiscount && (
                 <Badge className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-lg px-3 py-1 animate-pulse">
                   -{discountPercent}%
+                </Badge>
+              )}
+              {isHit && (
+                <Badge className="absolute top-4 right-4 bg-yellow-500 text-yellow-950 text-sm px-2 py-1">
+                  🔥 ХИТ
                 </Badge>
               )}
               

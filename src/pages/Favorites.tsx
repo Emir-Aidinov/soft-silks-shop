@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { useFavoritesStore } from "@/stores/favoritesStore";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
-import { Heart, ShoppingBag } from "lucide-react";
+import { Heart, ShoppingBag, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Favorites = () => {
+  const navigate = useNavigate();
   const { favorites } = useFavoritesStore();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,15 @@ const Favorites = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-8 px-4">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate(-1)}
+          className="mb-4 -ml-2 hover:bg-secondary/50"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Назад
+        </Button>
+
         <div className="flex items-center gap-3 mb-8">
           <Heart className="h-8 w-8 text-destructive fill-destructive" />
           <h1 className="text-3xl font-bold">Избранное</h1>

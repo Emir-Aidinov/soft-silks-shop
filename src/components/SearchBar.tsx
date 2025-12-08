@@ -33,10 +33,13 @@ export const SearchBar = () => {
       setLoading(true);
       try {
         const data = await storefrontApiRequest(STOREFRONT_QUERY, { 
-          first: 10,
-          query: `title:*${query}*`
+          first: 50
         });
-        setResults(data.data.products.edges);
+        const allProducts = data.data.products.edges as ShopifyProduct[];
+        const filtered = allProducts.filter((p: ShopifyProduct) => 
+          p.node.title.toLowerCase().includes(query.toLowerCase())
+        );
+        setResults(filtered.slice(0, 10));
         setIsOpen(true);
       } catch (error) {
         console.error('Search error:', error);
