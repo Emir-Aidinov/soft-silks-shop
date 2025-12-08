@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShopifyProduct, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY } from "@/lib/shopify";
+import { ShopifyProduct, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY, PRODUCT_DISCOUNTS } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavoritesStore } from "@/stores/favoritesStore";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Heart, Star, Package } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ProductCardProps {
@@ -60,12 +60,12 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const hasMultipleImages = images.length > 1;
   const currentImage = images[currentImageIndex] || "/placeholder.svg";
   
-  const price = parseFloat(node.priceRange.minVariantPrice.amount);
-  const compareAtPrice = node.compareAtPriceRange?.minVariantPrice?.amount 
-    ? parseFloat(node.compareAtPriceRange.minVariantPrice.amount) 
-    : null;
-  const hasDiscount = compareAtPrice && compareAtPrice > price;
-  const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
+  // Use hardcoded discounts for specific products
+  const discount = PRODUCT_DISCOUNTS[node.handle];
+  const price = discount ? discount.discountedPrice : parseFloat(node.priceRange.minVariantPrice.amount);
+  const originalPrice = discount ? discount.originalPrice : null;
+  const hasDiscount = !!discount;
+  const discountPercent = hasDiscount ? Math.round((1 - price / originalPrice!) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
   
   // Use hardcoded inventory from PRODUCT_INVENTORY - only show if less than 15
@@ -196,8 +196,8 @@ export const ProductCard = ({ product }: ProductCardProps) => {
         
         
         <div className="flex items-center gap-2 mt-2">
-          {hasDiscount && (
-            <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAtPrice)}</span>
+          {hasDiscount && originalPrice && (
+            <span className="text-sm text-muted-foreground line-through">{formatPrice(originalPrice)}</span>
           )}
           <span className={`text-lg font-bold ${hasDiscount ? 'text-destructive' : 'text-primary'}`}>{formatPrice(price)}</span>
         </div>

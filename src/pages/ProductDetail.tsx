@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY, PRODUCT_DISCOUNTS } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
 import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft, Package } from "lucide-react";
@@ -111,12 +111,12 @@ const ProductDetail = () => {
   const images = node.images.edges;
   const currentImage = images[selectedImageIndex]?.node.url || "/placeholder.svg";
   
-  const price = parseFloat(selectedVariant?.price.amount || "0");
-  const compareAtPrice = selectedVariant?.compareAtPrice?.amount 
-    ? parseFloat(selectedVariant.compareAtPrice.amount) 
-    : null;
-  const hasDiscount = compareAtPrice && compareAtPrice > price;
-  const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
+  // Use hardcoded discounts for specific products
+  const discount = PRODUCT_DISCOUNTS[node.handle];
+  const price = discount ? discount.discountedPrice : parseFloat(selectedVariant?.price.amount || "0");
+  const originalPrice = discount ? discount.originalPrice : null;
+  const hasDiscount = !!discount;
+  const discountPercent = hasDiscount ? Math.round((1 - price / originalPrice!) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
   
   // Use hardcoded inventory from PRODUCT_INVENTORY
@@ -205,9 +205,9 @@ const ProductDetail = () => {
             <div>
               <h1 className="text-2xl md:text-4xl font-bold mb-3">{node.title}</h1>
               <div className="flex items-center gap-3">
-                {hasDiscount && (
+                {hasDiscount && originalPrice && (
                   <p className="text-xl text-muted-foreground line-through">
-                    {formatPrice(compareAtPrice)}
+                    {formatPrice(originalPrice)}
                   </p>
                 )}
                 <p className={`text-3xl md:text-4xl font-bold ${hasDiscount ? 'text-destructive' : 'text-primary'}`}>

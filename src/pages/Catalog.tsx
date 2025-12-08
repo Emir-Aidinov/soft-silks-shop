@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, PRODUCT_INVENTORY } from "@/lib/shopify";
 import { Loader2, SlidersHorizontal, X, ArrowUpDown } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 
 type SortOption = "default" | "price-asc" | "price-desc" | "newest";
+type StockFilter = "all" | "in-stock" | "out-of-stock";
 
 const categories = [
   { name: "Все", value: "" },
@@ -32,15 +34,64 @@ const categories = [
   { name: "Другое", value: "другое" },
 ];
 
+const stockOptions = [
+  { name: "Все товары", value: "all" },
+  { name: "В наличии", value: "in-stock" },
+  { name: "Нет в наличии", value: "out-of-stock" },
+];
+
 const Catalog = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("");
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>("default");
   const isMobile = useIsMobile();
+
+  // Read filters from URL
+  const selectedCategory = searchParams.get("category") || "";
+  const selectedColors = searchParams.get("colors")?.split(",").filter(Boolean) || [];
+  const selectedSizes = searchParams.get("sizes")?.split(",").filter(Boolean) || [];
+  const sortBy = (searchParams.get("sort") as SortOption) || "default";
+  const stockFilter = (searchParams.get("stock") as StockFilter) || "all";
+
+  // Update URL with filters
+  const updateFilters = (updates: Record<string, string | string[] | null>) => {
+    const newParams = new URLSearchParams(searchParams);
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === "" || (Array.isArray(value) && value.length === 0)) {
+        newParams.delete(key);
+      } else if (Array.isArray(value)) {
+        newParams.set(key, value.join(","));
+      } else {
+        newParams.set(key, value);
+      }
+    });
+    
+    setSearchParams(newParams, { replace: true });
+  };
+
+  const setSelectedCategory = (value: string) => updateFilters({ category: value });
+  const setSortBy = (value: SortOption) => updateFilters({ sort: value === "default" ? null : value });
+  const setStockFilter = (value: StockFilter) => updateFilters({ stock: value === "all" ? null : value });
+
+  const toggleColor = (color: string) => {
+    const newColors = selectedColors.includes(color)
+      ? selectedColors.filter(c => c !== color)
+      : [...selectedColors, color];
+    updateFilters({ colors: newColors });
+  };
+
+  const toggleSize = (size: string) => {
+    const newSizes = selectedSizes.includes(size)
+      ? selectedSizes.filter(s => s !== size)
+      : [...selectedSizes, size];
+    updateFilters({ sizes: newSizes });
+  };
+
+  const clearFilters = () => {
+    setSearchParams({}, { replace: true });
+  };
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -73,25 +124,7 @@ const Catalog = () => {
     )
   ).filter(Boolean) as string[];
 
-  const toggleColor = (color: string) => {
-    setSelectedColors(prev => 
-      prev.includes(color) ? prev.filter(c => c !== color) : [...prev, color]
-    );
-  };
-
-  const toggleSize = (size: string) => {
-    setSelectedSizes(prev => 
-      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedCategory("");
-    setSelectedColors([]);
-    setSelectedSizes([]);
-  };
-
-  const activeFiltersCount = (selectedCategory ? 1 : 0) + selectedColors.length + selectedSizes.length;
+  const activeFiltersCount = (selectedCategory ? 1 : 0) + selectedColors.length + selectedSizes.length + (stockFilter !== "all" ? 1 : 0);
 
   const filteredProducts = products.filter(p => {
     const categoryMatch = !selectedCategory || 
@@ -111,7 +144,14 @@ const Catalog = () => {
         )
       );
 
-    return categoryMatch && colorMatch && sizeMatch;
+    // Stock filter
+    const inventory = PRODUCT_INVENTORY[p.node.handle];
+    const isInStock = inventory === undefined || inventory > 0;
+    const stockMatch = stockFilter === "all" || 
+      (stockFilter === "in-stock" && isInStock) ||
+      (stockFilter === "out-of-stock" && !isInStock);
+
+    return categoryMatch && colorMatch && sizeMatch && stockMatch;
   });
 
   // Sort products
@@ -148,6 +188,26 @@ const Catalog = () => {
               }`}
             >
               {category.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Stock availability */}
+      <div>
+        <h3 className="font-semibold mb-3 text-foreground">Наличие</h3>
+        <div className="flex flex-wrap gap-2">
+          {stockOptions.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => setStockFilter(option.value as StockFilter)}
+              className={`px-3 py-1.5 md:px-4 md:py-2 rounded-full text-sm font-medium transition-colors ${
+                stockFilter === option.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+              }`}
+            >
+              {option.name}
             </button>
           ))}
         </div>
