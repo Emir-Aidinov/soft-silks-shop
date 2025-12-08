@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, LogOut, User, Shield, Menu } from "lucide-react";
+import { Heart, LogOut, User, Shield, Menu, Search } from "lucide-react";
 import { CartDrawer } from "./CartDrawer";
+import { SearchBar } from "./SearchBar";
 import { Button } from "./ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -18,6 +19,7 @@ export const Header = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const { isAdmin } = useAdminCheck();
 
   useEffect(() => {
@@ -49,14 +51,24 @@ export const Header = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center space-x-2">
-          <Heart className="h-6 w-6 text-primary fill-primary" />
-          <span className="font-semibold text-xl">Бесценки</span>
+      <div className="container flex h-16 items-center justify-between gap-4">
+        <Link to="/" className="flex items-center space-x-2 flex-shrink-0">
+          <div className="relative">
+            <Heart className="h-7 w-7 text-primary fill-primary" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
+          </div>
+          <span className="font-bold text-xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Бесценки
+          </span>
         </Link>
+
+        {/* Desktop Search */}
+        <div className="hidden md:flex flex-1 max-w-md mx-4">
+          <SearchBar />
+        </div>
         
         {/* Desktop navigation */}
-        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+        <nav className="hidden lg:flex items-center space-x-6 text-sm font-medium">
           <Link to="/" className="transition-colors hover:text-primary">
             Главная
           </Link>
@@ -66,30 +78,30 @@ export const Header = () => {
           {isAdmin && (
             <Link to="/admin" className="transition-colors hover:text-primary flex items-center gap-2">
               <Shield className="h-4 w-4" />
-              Админ-панель
+              Админ
             </Link>
           )}
         </nav>
         
         {/* Desktop actions */}
-        <div className="hidden md:flex items-center gap-4">
+        <div className="hidden md:flex items-center gap-3">
           <CartDrawer />
           
           {user ? (
             <>
-              <Button variant="ghost" size="sm" asChild>
+              <Button variant="ghost" size="sm" asChild className="hover:bg-primary/10">
                 <Link to="/profile">
                   <User className="h-4 w-4 mr-2" />
                   Профиль
                 </Link>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50">
                 <LogOut className="h-4 w-4 mr-2" />
                 Выход
               </Button>
             </>
           ) : (
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="default" size="sm" asChild className="shadow-soft">
               <Link to="/auth">
                 <User className="h-4 w-4 mr-2" />
                 Вход
@@ -100,6 +112,13 @@ export const Header = () => {
 
         {/* Mobile actions */}
         <div className="flex md:hidden items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
+          >
+            <Search className="h-5 w-5" />
+          </Button>
           <CartDrawer />
           
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -165,6 +184,13 @@ export const Header = () => {
           </Sheet>
         </div>
       </div>
+
+      {/* Mobile search bar */}
+      {showMobileSearch && (
+        <div className="md:hidden border-t p-3 animate-fade-in">
+          <SearchBar />
+        </div>
+      )}
     </header>
   );
 };
