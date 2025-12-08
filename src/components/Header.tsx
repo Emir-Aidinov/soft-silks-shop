@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { useAdminCheck } from "@/hooks/useAdminCheck";
+import { useFavoritesStore } from "@/stores/favoritesStore";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +22,7 @@ export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const { isAdmin } = useAdminCheck();
+  const { favorites } = useFavoritesStore();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -85,6 +87,14 @@ export const Header = () => {
         
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-3">
+          <Link to="/favorites" className="relative p-2 hover:bg-secondary rounded-full transition-colors">
+            <Heart className={`h-5 w-5 ${favorites.length > 0 ? "fill-destructive text-destructive" : "text-muted-foreground"}`} />
+            {favorites.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium">
+                {favorites.length}
+              </span>
+            )}
+          </Link>
           <CartDrawer />
           
           {user ? (
@@ -119,6 +129,14 @@ export const Header = () => {
           >
             <Search className="h-5 w-5" />
           </Button>
+          <Link to="/favorites" className="relative p-2">
+            <Heart className={`h-5 w-5 ${favorites.length > 0 ? "fill-destructive text-destructive" : "text-muted-foreground"}`} />
+            {favorites.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium">
+                {favorites.length}
+              </span>
+            )}
+          </Link>
           <CartDrawer />
           
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -142,6 +160,14 @@ export const Header = () => {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Каталог
+                </Link>
+                <Link 
+                  to="/favorites" 
+                  className="text-lg font-medium hover:text-primary transition-colors flex items-center gap-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Heart className={`h-4 w-4 ${favorites.length > 0 ? "fill-destructive text-destructive" : ""}`} />
+                  Избранное {favorites.length > 0 && `(${favorites.length})`}
                 </Link>
                 {isAdmin && (
                   <Link 

@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ShopifyProduct, formatPrice } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
+import { useFavoritesStore } from "@/stores/favoritesStore";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Heart, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProductCardProps {
   product: ShopifyProduct;
@@ -14,8 +16,26 @@ interface ProductCardProps {
 
 export const ProductCard = ({ product }: ProductCardProps) => {
   const addItem = useCartStore(state => state.addItem);
+  const { toggleFavorite, favorites } = useFavoritesStore();
+  const isFavorite = favorites.includes(product.node.handle);
   const { node } = product;
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [rating, setRating] = useState<{ avg: number; count: number } | null>(null);
+
+  useEffect(() => {
+    const fetchRating = async () => {
+      const { data } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('product_id', node.handle);
+      
+      if (data && data.length > 0) {
+        const avg = data.reduce((sum, r) => sum + r.rating, 0) / data.length;
+        setRating({ avg: Math.round(avg * 10) / 10, count: data.length });
+      }
+    };
+    fetchRating();
+  }, [node.handle]);
 
   const handleAddToCart = () => {
     const firstVariant = node.variants.edges[0]?.node;
@@ -65,10 +85,27 @@ export const ProductCard = ({ product }: ProductCardProps) => {
     setCurrentImageIndex(index);
   };
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite(node.handle);
+    toast.success(isFavorite ? "Удалено из избранного" : "Добавлено в избранное");
+  };
+
   return (
     <Card className="group overflow-hidden transition-all hover:shadow-hover animate-fade-in">
       <Link to={`/product/${node.handle}`}>
         <div className="aspect-[3/4] overflow-hidden bg-secondary/20 relative">
+          {/* Favorite button */}
+          <button
+            onClick={handleFavoriteClick}
+            className="absolute top-2 right-2 z-10 w-9 h-9 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
+            aria-label={isFavorite ? "Удалить из избранного" : "Добавить в избранное"}
+          >
+            <Heart 
+              className={`h-5 w-5 transition-colors ${isFavorite ? "fill-destructive text-destructive" : "text-muted-foreground hover:text-destructive"}`} 
+            />
+          </button>
           <img
             src={currentImage}
             alt={node.title}
@@ -127,6 +164,14 @@ export const ProductCard = ({ product }: ProductCardProps) => {
             {node.title}
           </h3>
         </Link>
+        {/* Rating */}
+        {rating && (
+          <div className="flex items-center gap-1 mb-2">
+            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm font-medium">{rating.avg}</span>
+            <span className="text-xs text-muted-foreground">({rating.count})</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <p className="text-lg font-semibold text-primary">
             {formatPrice(price)}

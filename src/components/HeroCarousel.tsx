@@ -124,21 +124,34 @@ export const HeroCarousel = () => {
   );
 };
 
+// Sale products with manual discounts for demo
+const SALE_PRODUCT_HANDLES = [
+  { handle: "сорочка-на-бретелях", discount: 20 },
+  { handle: "кружевная-сорочка", discount: 15 },
+  { handle: "бралетт", discount: 25 },
+  { handle: "классический-набор", discount: 30 },
+];
+
 export const SaleProducts = () => {
-  const [products, setProducts] = useState<ShopifyProduct[]>([]);
+  const [products, setProducts] = useState<(ShopifyProduct & { discountPercent: number })[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const data = await storefrontApiRequest(STOREFRONT_QUERY, { first: 20 });
-        // Filter products with discounts
-        const saleProducts = (data.data.products.edges as ShopifyProduct[]).filter(p => {
-          const compareAt = p.node.compareAtPriceRange?.minVariantPrice?.amount;
-          const price = p.node.priceRange.minVariantPrice.amount;
-          return compareAt && parseFloat(compareAt) > parseFloat(price);
-        });
-        setProducts(saleProducts.slice(0, 4));
+        const allProducts = data.data.products.edges as ShopifyProduct[];
+        
+        // Get sale products with their discounts
+        const saleProducts = SALE_PRODUCT_HANDLES.map(sale => {
+          const product = allProducts.find(p => p.node.handle === sale.handle);
+          if (product) {
+            return { ...product, discountPercent: sale.discount };
+          }
+          return null;
+        }).filter(Boolean) as (ShopifyProduct & { discountPercent: number })[];
+        
+        setProducts(saleProducts);
       } catch (error) {
         console.error('Error fetching sale products:', error);
       } finally {
@@ -187,34 +200,39 @@ export const SaleProducts = () => {
         {products.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {products.map((product) => {
-              const price = parseFloat(product.node.priceRange.minVariantPrice.amount);
-              const compareAt = parseFloat(product.node.compareAtPriceRange?.minVariantPrice?.amount || "0");
-              const discount = Math.round((1 - price / compareAt) * 100);
+              const originalPrice = parseFloat(product.node.priceRange.minVariantPrice.amount);
+              const discountedPrice = Math.round(originalPrice * (1 - product.discountPercent / 100));
               const image = product.node.images.edges[0]?.node.url;
 
               return (
                 <Link
                   key={product.node.id}
                   to={`/product/${product.node.handle}`}
-                  className="group relative bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-hover transition-all"
+                  className="group relative bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-hover transition-all border-2 border-destructive/20"
                 >
-                  <div className="aspect-[3/4] overflow-hidden">
+                  <div className="aspect-[3/4] overflow-hidden relative">
                     <img
                       src={image}
                       alt={product.node.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-destructive/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="absolute top-3 left-3">
-                    <span className="bg-destructive text-destructive-foreground text-sm font-bold px-3 py-1 rounded-full animate-pulse">
-                      -{discount}%
+                    <span className="bg-destructive text-destructive-foreground text-sm font-bold px-3 py-1 rounded-full animate-pulse shadow-lg">
+                      -{product.discountPercent}%
                     </span>
                   </div>
-                  <div className="p-4">
+                  <div className="absolute top-3 right-3">
+                    <span className="bg-yellow-500 text-yellow-950 text-xs font-bold px-2 py-1 rounded-full">
+                      🔥 ХИТ
+                    </span>
+                  </div>
+                  <div className="p-4 bg-gradient-to-t from-card to-card/80">
                     <h3 className="font-semibold truncate">{product.node.title}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-lg font-bold text-primary">{formatPrice(price)}</span>
-                      <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAt)}</span>
+                      <span className="text-lg font-bold text-destructive">{formatPrice(discountedPrice)}</span>
+                      <span className="text-sm text-muted-foreground line-through">{formatPrice(originalPrice)}</span>
                     </div>
                   </div>
                 </Link>
