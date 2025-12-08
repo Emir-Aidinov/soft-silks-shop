@@ -194,14 +194,6 @@ export const ProductCard = ({ product }: ProductCardProps) => {
           {node.title}
         </h3>
         
-        {/* Rating */}
-        {rating && (
-          <div className="flex items-center gap-1 mt-1">
-            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium">{rating.avg}</span>
-            <span className="text-xs text-muted-foreground">({rating.count})</span>
-          </div>
-        )}
         
         <div className="flex items-center gap-2 mt-2">
           {hasDiscount && (
