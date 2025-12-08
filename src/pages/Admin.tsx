@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import Dashboard from './admin/Dashboard';
 import Orders from './admin/Orders';
 import Discounts from './admin/Discounts';
+import Banners from './admin/Banners';
 
 export default function Admin() {
   return (
@@ -13,6 +14,7 @@ export default function Admin() {
           <Route index element={<Dashboard />} />
           <Route path="orders" element={<Orders />} />
           <Route path="discounts" element={<Discounts />} />
+          <Route path="banners" element={<Banners />} />
         </Routes>
       </AdminLayout>
     </RequireAdmin>
