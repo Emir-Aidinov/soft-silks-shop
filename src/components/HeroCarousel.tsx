@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, Flame, Gift, Package } from "lucide-react";
 import { Button } from "./ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY, PRODUCT_DISCOUNTS } from "@/lib/shopify";
 const heroSlides = [{
   title: "Новая коллекция",
   subtitle: "Элегантность в каждой детали",
@@ -147,15 +147,17 @@ export const SaleProducts = () => {
 
         {products.length > 0 ? <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {products.map(product => {
-          const price = parseFloat(product.node.priceRange.minVariantPrice.amount);
-          const compareAtPrice = product.node.compareAtPriceRange?.minVariantPrice?.amount ? parseFloat(product.node.compareAtPriceRange.minVariantPrice.amount) : null;
-          const hasDiscount = compareAtPrice && compareAtPrice > price;
-          const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
+          // Use hardcoded discounts for specific products
+          const discount = PRODUCT_DISCOUNTS[product.node.handle];
+          const price = discount ? discount.discountedPrice : parseFloat(product.node.priceRange.minVariantPrice.amount);
+          const originalPrice = discount ? discount.originalPrice : null;
+          const hasDiscount = !!discount;
+          const discountPercent = hasDiscount ? Math.round((1 - price / originalPrice!) * 100) : 0;
           const image = product.node.images.edges[0]?.node.url;
 
-          // Use hardcoded inventory from PRODUCT_INVENTORY
+          // Use hardcoded inventory from PRODUCT_INVENTORY - only show if less than 15
           const inventory = PRODUCT_INVENTORY[product.node.handle];
-          const showLowStock = inventory !== undefined && inventory > 0;
+          const showLowStock = inventory !== undefined && inventory > 0 && inventory < 15;
           return <Link key={product.node.id} to={`/product/${product.node.handle}`} className="group relative bg-card rounded-xl overflow-hidden shadow-soft hover:shadow-hover transition-all border-2 border-destructive/20 text-center">
                   <div className="aspect-[3/4] overflow-hidden relative">
                     <img src={image} alt={product.node.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -180,8 +182,8 @@ export const SaleProducts = () => {
                     </div>}
                   <div className="p-4 bg-gradient-to-t from-card to-card/80">
                     <h3 className="font-semibold truncate">{product.node.title}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      {hasDiscount && <span className="text-sm text-muted-foreground line-through">{formatPrice(compareAtPrice)}</span>}
+                    <div className="flex items-center justify-center gap-2 mt-1">
+                      {hasDiscount && originalPrice && <span className="text-sm text-muted-foreground line-through">{formatPrice(originalPrice)}</span>}
                       <span className={`text-lg font-bold ${hasDiscount ? 'text-destructive' : 'text-primary'}`}>{formatPrice(price)}</span>
                     </div>
                   </div>

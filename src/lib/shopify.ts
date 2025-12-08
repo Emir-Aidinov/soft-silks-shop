@@ -143,6 +143,15 @@ export const SALE_PRODUCT_HANDLES = [
   "классический-набор",
 ];
 
+// Hardcoded discount prices for products (original price -> discounted price)
+// Only products in this map will show discount pricing
+export const PRODUCT_DISCOUNTS: Record<string, { originalPrice: number; discountedPrice: number }> = {
+  "сорочка-на-бретелях": { originalPrice: 1800, discountedPrice: 1350 },
+  "кружевная-сорочка": { originalPrice: 2200, discountedPrice: 1650 },
+  "бралетт": { originalPrice: 1200, discountedPrice: 900 },
+  "классический-набор": { originalPrice: 2500, discountedPrice: 1875 },
+};
+
 const CART_CREATE_MUTATION = `
   mutation cartCreate($input: CartInput!) {
     cartCreate(input: $input) {
