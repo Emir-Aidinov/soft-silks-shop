@@ -107,6 +107,7 @@ export default function Orders() {
               email: order.email,
               type: 'status_updated',
               status: newStatus,
+              userId: order.user_id,
             },
           });
         } catch (emailError) {
