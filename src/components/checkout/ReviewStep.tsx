@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Loader2, CreditCard, Banknote, MapPin, User } from "lucide-react";
 import { CartItem } from "@/stores/cartStore";
+import { PromoCodeInput } from "./PromoCodeInput";
 
 interface ContactData {
   fullName: string;
@@ -21,7 +23,7 @@ interface ReviewStepProps {
   paymentMethod: 'online' | 'cash';
   items: CartItem[];
   isLoading: boolean;
-  onSubmit: () => void;
+  onSubmit: (promoCode: string | null, discount: number) => void;
   onBack: () => void;
 }
 
@@ -34,10 +36,29 @@ export const ReviewStep = ({
   onSubmit,
   onBack,
 }: ReviewStepProps) => {
-  const totalPrice = items.reduce(
+  const [promoCode, setPromoCode] = useState<string | null>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+
+  const subtotal = items.reduce(
     (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
     0
   );
+  
+  const totalPrice = subtotal - promoDiscount;
+
+  const handleApplyPromo = (discount: number, code: string) => {
+    setPromoCode(code);
+    setPromoDiscount(discount);
+  };
+
+  const handleRemovePromo = () => {
+    setPromoCode(null);
+    setPromoDiscount(0);
+  };
+
+  const handleSubmit = () => {
+    onSubmit(promoCode, promoDiscount);
+  };
 
   return (
     <div className="space-y-6">
@@ -122,10 +143,33 @@ export const ReviewStep = ({
 
       <Separator />
 
+      {/* Promo Code */}
+      <PromoCodeInput
+        subtotal={subtotal}
+        onApply={handleApplyPromo}
+        onRemove={handleRemovePromo}
+        appliedCode={promoCode}
+        appliedDiscount={promoDiscount}
+      />
+
+      <Separator />
+
       {/* Total */}
-      <div className="flex justify-between items-center text-lg font-semibold">
-        <span>Итого</span>
-        <span>{totalPrice.toFixed(0)} сом</span>
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-sm text-muted-foreground">
+          <span>Подытог</span>
+          <span>{subtotal.toFixed(0)} сом</span>
+        </div>
+        {promoDiscount > 0 && (
+          <div className="flex justify-between items-center text-sm text-green-600">
+            <span>Скидка ({promoCode})</span>
+            <span>-{promoDiscount} сом</span>
+          </div>
+        )}
+        <div className="flex justify-between items-center text-lg font-semibold">
+          <span>Итого</span>
+          <span>{totalPrice.toFixed(0)} сом</span>
+        </div>
       </div>
 
       <div className="flex gap-3">
@@ -140,7 +184,7 @@ export const ReviewStep = ({
           Назад
         </Button>
         <Button
-          onClick={onSubmit}
+          onClick={handleSubmit}
           disabled={isLoading}
           className="flex-1"
           size="lg"
