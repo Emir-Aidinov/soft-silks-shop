@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShopifyProduct, formatPrice, SALE_PRODUCT_HANDLES } from "@/lib/shopify";
+import { ShopifyProduct, formatPrice, SALE_PRODUCT_HANDLES, PRODUCT_INVENTORY } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { useFavoritesStore } from "@/stores/favoritesStore";
 import { toast } from "sonner";
@@ -68,9 +68,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
   
-  // Inventory - for "Макси" product show 10, otherwise use totalInventory
-  const inventory = node.handle === "макси-трусы" ? 10 : node.totalInventory;
-  const showLowStock = inventory > 0 && inventory <= 15;
+  // Use hardcoded inventory from PRODUCT_INVENTORY
+  const inventory = PRODUCT_INVENTORY[node.handle];
+  const showLowStock = inventory !== undefined && inventory > 0;
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.preventDefault();
