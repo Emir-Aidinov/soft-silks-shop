@@ -68,9 +68,9 @@ export const ProductCard = ({ product }: ProductCardProps) => {
   const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
   const isHit = SALE_PRODUCT_HANDLES.includes(node.handle);
   
-  // Use hardcoded inventory from PRODUCT_INVENTORY
+  // Use hardcoded inventory from PRODUCT_INVENTORY - only show if less than 15
   const inventory = PRODUCT_INVENTORY[node.handle];
-  const showLowStock = inventory !== undefined && inventory > 0;
+  const showLowStock = inventory !== undefined && inventory > 0 && inventory < 15;
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.preventDefault();
