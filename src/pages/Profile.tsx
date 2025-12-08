@@ -8,8 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Package } from "lucide-react";
+import { Loader2, Package, Gift } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { ReferralProgram } from "@/components/ReferralProgram";
+import { useReferralStore } from "@/stores/referralStore";
 
 interface Profile {
   full_name: string | null;
@@ -30,6 +32,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile>({ full_name: "", phone: "" });
   const [orders, setOrders] = useState<Order[]>([]);
+  const { applyReferralCode } = useReferralStore();
 
   useEffect(() => {
     checkUser();
@@ -45,6 +48,17 @@ export default function Profile() {
 
     await loadProfile();
     await loadOrders();
+    
+    // Apply pending referral code if exists
+    const pendingRef = localStorage.getItem('pending_referral');
+    if (pendingRef) {
+      const success = await applyReferralCode(pendingRef);
+      if (success) {
+        toast.success('Реферальный код применён!');
+      }
+      localStorage.removeItem('pending_referral');
+    }
+    
     setLoading(false);
   };
 
@@ -137,9 +151,13 @@ export default function Profile() {
         <h1 className="text-3xl font-bold mb-6">Личный кабинет</h1>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile">Профиль</TabsTrigger>
-            <TabsTrigger value="orders">История заказов</TabsTrigger>
+            <TabsTrigger value="orders">Заказы</TabsTrigger>
+            <TabsTrigger value="referral" className="flex items-center gap-1">
+              <Gift className="h-4 w-4" />
+              Рефералы
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -234,6 +252,10 @@ export default function Profile() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="referral">
+            <ReferralProgram />
           </TabsContent>
         </Tabs>
       </main>

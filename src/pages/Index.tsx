@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
@@ -8,12 +8,17 @@ import { HeroCarousel, SaleProducts } from "@/components/HeroCarousel";
 import { DynamicPromoBanner } from "@/components/DynamicPromoBanner";
 import { Bestsellers } from "@/components/Bestsellers";
 import { RecentlyViewed } from "@/components/RecentlyViewed";
+import { OnboardingModal } from "@/components/OnboardingModal";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
 import { ArrowRight, Sparkles, Star, TrendingUp } from "lucide-react";
+import { useReferralStore } from "@/stores/referralStore";
+import { toast } from "sonner";
 
 const Index = () => {
   const [products, setProducts] = useState<ShopifyProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const { applyReferralCode } = useReferralStore();
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -30,8 +35,23 @@ const Index = () => {
     fetchProducts();
   }, []);
 
+  // Handle referral code from URL
+  useEffect(() => {
+    const refCode = searchParams.get('ref');
+    if (refCode) {
+      const storedRef = localStorage.getItem('pending_referral');
+      if (!storedRef) {
+        localStorage.setItem('pending_referral', refCode);
+        toast.info('Реферальный код сохранён! Войдите или зарегистрируйтесь, чтобы его применить.');
+      }
+    }
+  }, [searchParams]);
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Onboarding Modal */}
+      <OnboardingModal />
+      
       {/* Dynamic Promo Banner from DB */}
       <DynamicPromoBanner />
       

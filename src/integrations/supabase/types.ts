@@ -122,6 +122,47 @@ export type Database = {
         }
         Relationships: []
       }
+      referrals: {
+        Row: {
+          bonus_earned: number | null
+          created_at: string
+          id: string
+          referral_code: string
+          referral_count: number | null
+          referred_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bonus_earned?: number | null
+          created_at?: string
+          id?: string
+          referral_code: string
+          referral_count?: number | null
+          referred_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bonus_earned?: number | null
+          created_at?: string
+          id?: string
+          referral_code?: string
+          referral_count?: number | null
+          referred_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviews: {
         Row: {
           comment: string | null
