@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
+import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest, formatPrice } from "@/lib/shopify";
 import { useCartStore } from "@/stores/cartStore";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const ProductDetail = () => {
   const { handle } = useParams();
@@ -13,6 +14,7 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const addItem = useCartStore(state => state.addItem);
 
   useEffect(() => {
@@ -28,7 +30,6 @@ const ProductDetail = () => {
           const firstVariant = foundProduct.node.variants.edges[0]?.node;
           setSelectedVariant(firstVariant);
           
-          // Initialize selected options
           const initialOptions: Record<string, string> = {};
           firstVariant?.selectedOptions.forEach((opt: any) => {
             initialOptions[opt.name] = opt.value;
@@ -49,7 +50,6 @@ const ProductDetail = () => {
     const newOptions = { ...selectedOptions, [optionName]: value };
     setSelectedOptions(newOptions);
 
-    // Find matching variant
     const variant = product?.node.variants.edges.find((v) => 
       v.node.selectedOptions.every((opt) => newOptions[opt.name] === opt.value)
     );
@@ -100,33 +100,74 @@ const ProductDetail = () => {
   }
 
   const { node } = product;
-  const mainImage = node.images.edges[0]?.node.url || "/placeholder.svg";
+  const images = node.images.edges;
+  const currentImage = images[selectedImageIndex]?.node.url || "/placeholder.svg";
+  
+  const price = parseFloat(selectedVariant?.price.amount || "0");
+  const compareAtPrice = selectedVariant?.compareAtPrice?.amount 
+    ? parseFloat(selectedVariant.compareAtPrice.amount) 
+    : null;
+  const hasDiscount = compareAtPrice && compareAtPrice > price;
+  const discountPercent = hasDiscount ? Math.round((1 - price / compareAtPrice) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container py-8">
-        <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+      <main className="container py-4 md:py-8">
+        <div className="grid md:grid-cols-2 gap-6 lg:gap-12">
           <div className="space-y-4">
-            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-secondary/20">
+            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-secondary/20 relative">
               <img
-                src={mainImage}
+                src={currentImage}
                 alt={node.title}
                 className="w-full h-full object-cover"
               />
+              
+              {hasDiscount && (
+                <Badge className="absolute top-4 left-4 bg-destructive text-destructive-foreground text-lg px-3 py-1">
+                  -{discountPercent}%
+                </Badge>
+              )}
+              
+              {/* Image navigation */}
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setSelectedImageIndex(prev => (prev === 0 ? images.length - 1 : prev - 1))}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
+                    aria-label="Предыдущее фото"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1))}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-background/80 hover:bg-background flex items-center justify-center transition-all"
+                    aria-label="Следующее фото"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
             </div>
             
-            {node.images.edges.length > 1 && (
-              <div className="grid grid-cols-4 gap-4">
-                {node.images.edges.slice(1, 5).map((image, idx) => (
-                  <div key={idx} className="aspect-square rounded-md overflow-hidden bg-secondary/20">
+            {/* Thumbnail gallery */}
+            {images.length > 1 && (
+              <div className="grid grid-cols-5 gap-2">
+                {images.map((image, idx) => (
+                  <button
+                    key={idx} 
+                    onClick={() => setSelectedImageIndex(idx)}
+                    className={`aspect-square rounded-md overflow-hidden bg-secondary/20 border-2 transition-all ${
+                      idx === selectedImageIndex ? 'border-primary' : 'border-transparent hover:border-primary/50'
+                    }`}
+                  >
                     <img
                       src={image.node.url}
-                      alt={`${node.title} ${idx + 2}`}
+                      alt={`${node.title} ${idx + 1}`}
                       className="w-full h-full object-cover"
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -134,10 +175,17 @@ const ProductDetail = () => {
 
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{node.title}</h1>
-              <p className="text-2xl font-semibold text-primary">
-                {selectedVariant?.price.currencyCode} {parseFloat(selectedVariant?.price.amount).toFixed(2)}
-              </p>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">{node.title}</h1>
+              <div className="flex items-center gap-3">
+                <p className="text-2xl md:text-3xl font-semibold text-primary">
+                  {formatPrice(price)}
+                </p>
+                {hasDiscount && (
+                  <p className="text-lg text-muted-foreground line-through">
+                    {formatPrice(compareAtPrice)}
+                  </p>
+                )}
+              </div>
             </div>
 
             {node.description && (

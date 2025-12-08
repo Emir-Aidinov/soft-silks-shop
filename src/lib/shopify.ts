@@ -16,6 +16,12 @@ export interface ShopifyProduct {
         currencyCode: string;
       };
     };
+    compareAtPriceRange: {
+      minVariantPrice: {
+        amount: string;
+        currencyCode: string;
+      };
+    };
     images: {
       edges: Array<{
         node: {
@@ -33,6 +39,10 @@ export interface ShopifyProduct {
             amount: string;
             currencyCode: string;
           };
+          compareAtPrice: {
+            amount: string;
+            currencyCode: string;
+          } | null;
           availableForSale: boolean;
           selectedOptions: Array<{
             name: string;
@@ -64,7 +74,13 @@ export const STOREFRONT_QUERY = `
               currencyCode
             }
           }
-          images(first: 5) {
+          compareAtPriceRange {
+            minVariantPrice {
+              amount
+              currencyCode
+            }
+          }
+          images(first: 10) {
             edges {
               node {
                 url
@@ -72,12 +88,16 @@ export const STOREFRONT_QUERY = `
               }
             }
           }
-          variants(first: 10) {
+          variants(first: 20) {
             edges {
               node {
                 id
                 title
                 price {
+                  amount
+                  currencyCode
+                }
+                compareAtPrice {
                   amount
                   currencyCode
                 }
@@ -199,4 +219,10 @@ export async function createStorefrontCheckout(items: any[]): Promise<string> {
     console.error('Error creating storefront checkout:', error);
     throw error;
   }
+}
+
+// Helper to format price in som
+export function formatPrice(amount: string | number): string {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return `${num.toFixed(0)} сом`;
 }

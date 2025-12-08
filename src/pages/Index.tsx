@@ -30,21 +30,21 @@ const Index = () => {
       <Header />
       
       {/* Hero Section */}
-      <section className="relative bg-gradient-hero py-20 md:py-32">
+      <section className="relative bg-gradient-hero py-12 md:py-32">
         <div className="container">
-          <div className="max-w-3xl mx-auto text-center space-y-6 animate-fade-in">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
+          <div className="max-w-3xl mx-auto text-center space-y-4 md:space-y-6 animate-fade-in px-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-2 md:mb-4">
               <Sparkles className="h-4 w-4" />
               Новая коллекция
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight">
+            <h1 className="text-3xl md:text-6xl font-bold tracking-tight">
               Элегантность и комфорт
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground">
+            <p className="text-base md:text-xl text-muted-foreground">
               Откройте для себя изысканную коллекцию женского белья, созданную с любовью к деталям
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Button asChild size="lg" className="shadow-soft">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2 md:pt-4">
+              <Button asChild size="lg" className="shadow-soft w-full sm:w-auto">
                 <Link to="/catalog">
                   Смотреть каталог
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -56,10 +56,10 @@ const Index = () => {
       </section>
 
       {/* Categories Section */}
-      <section className="py-16 bg-secondary/30">
-        <div className="container">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">Категории</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <section className="py-10 md:py-16 bg-secondary/30">
+        <div className="container px-4">
+          <h2 className="text-xl md:text-3xl font-bold text-center mb-8 md:mb-12">Категории</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {[
               { name: "Сорочки", emoji: "👗" },
               { name: "Трусы", emoji: "💝" },
@@ -69,10 +69,10 @@ const Index = () => {
               <Link
                 key={category.name}
                 to="/catalog"
-                className="group p-6 rounded-lg bg-card border hover:shadow-soft transition-all"
+                className="group p-4 md:p-6 rounded-lg bg-card border hover:shadow-soft transition-all"
               >
-                <div className="text-4xl mb-2">{category.emoji}</div>
-                <h3 className="font-semibold group-hover:text-primary transition-colors">
+                <div className="text-3xl md:text-4xl mb-2">{category.emoji}</div>
+                <h3 className="font-semibold text-sm md:text-base group-hover:text-primary transition-colors">
                   {category.name}
                 </h3>
               </Link>
@@ -82,17 +82,17 @@ const Index = () => {
       </section>
 
       {/* Featured Products */}
-      <section className="py-16">
-        <div className="container">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold">Популярные товары</h2>
-            <Button asChild variant="outline">
+      <section className="py-10 md:py-16">
+        <div className="container px-4">
+          <div className="flex items-center justify-between mb-6 md:mb-8">
+            <h2 className="text-xl md:text-3xl font-bold">Популярные товары</h2>
+            <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
               <Link to="/catalog">Все товары</Link>
             </Button>
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-secondary/20 rounded-lg animate-pulse" />
               ))}
@@ -105,11 +105,18 @@ const Index = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.node.id} product={product} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                {products.map((product) => (
+                  <ProductCard key={product.node.id} product={product} />
+                ))}
+              </div>
+              <div className="text-center mt-6 sm:hidden">
+                <Button asChild variant="outline">
+                  <Link to="/catalog">Все товары</Link>
+                </Button>
+              </div>
+            </>
           )}
         </div>
       </section>
