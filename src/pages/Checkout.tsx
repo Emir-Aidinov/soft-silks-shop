@@ -66,7 +66,7 @@ export default function Checkout() {
     loadProfile();
   }, []);
 
-  const handleSubmit = async (promoCode: string | null, promoDiscount: number) => {
+  const handleSubmit = async (promoCode: string | null, totalDiscount: number, loyaltyPointsUsed: number) => {
     setLoading(true);
     
     try {
@@ -76,7 +76,7 @@ export default function Checkout() {
         (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
         0
       );
-      const totalPrice = subtotal - promoDiscount;
+      const totalPrice = subtotal - totalDiscount;
 
       const orderItems = items.map((item) => ({
         productId: item.product.node.id,
@@ -99,7 +99,7 @@ export default function Checkout() {
           total: totalPrice,
           items: orderItems,
           shipping_address: shippingAddress,
-          notes: address.notes ? `${address.notes}${promoCode ? ` | Промокод: ${promoCode}` : ''}` : (promoCode ? `Промокод: ${promoCode}` : null),
+          notes: address.notes ? `${address.notes}${promoCode ? ` | Промокод: ${promoCode}` : ''}${loyaltyPointsUsed > 0 ? ` | Баллы: ${loyaltyPointsUsed}` : ''}` : (promoCode ? `Промокод: ${promoCode}` : null),
           payment_method: paymentMethod,
           email: contact.email,
           status: "pending",
@@ -108,6 +108,12 @@ export default function Checkout() {
         .single();
 
       if (error) throw error;
+
+      // Spend loyalty points if used
+      if (user && loyaltyPointsUsed > 0) {
+        const { spendPoints } = useLoyaltyStore.getState();
+        await spendPoints(loyaltyPointsUsed, `Заказ #${order.id.slice(0, 8)}`);
+      }
 
       // Add loyalty points (1% of order total)
       if (user) {

@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Loader2, CreditCard, Banknote, MapPin, User } from "lucide-react";
 import { CartItem } from "@/stores/cartStore";
 import { PromoCodeInput } from "./PromoCodeInput";
+import { LoyaltyPointsInput } from "./LoyaltyPointsInput";
 
 interface ContactData {
   fullName: string;
@@ -23,7 +24,7 @@ interface ReviewStepProps {
   paymentMethod: 'online' | 'cash';
   items: CartItem[];
   isLoading: boolean;
-  onSubmit: (promoCode: string | null, discount: number) => void;
+  onSubmit: (promoCode: string | null, discount: number, loyaltyPointsUsed: number) => void;
   onBack: () => void;
 }
 
@@ -38,17 +39,25 @@ export const ReviewStep = ({
 }: ReviewStepProps) => {
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
+  const [loyaltyPointsUsed, setLoyaltyPointsUsed] = useState(0);
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
 
   const subtotal = items.reduce(
     (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
     0
   );
   
-  const totalPrice = subtotal - promoDiscount;
+  const totalPrice = subtotal - promoDiscount - loyaltyDiscount;
+  const maxLoyaltyDiscount = (subtotal - promoDiscount) * 0.5; // Max 50% discount with points
 
   const handleApplyPromo = (discount: number, code: string) => {
     setPromoCode(code);
     setPromoDiscount(discount);
+    // Reset loyalty if it exceeds new max
+    if (loyaltyDiscount > (subtotal - discount) * 0.5) {
+      setLoyaltyPointsUsed(0);
+      setLoyaltyDiscount(0);
+    }
   };
 
   const handleRemovePromo = () => {
@@ -56,8 +65,18 @@ export const ReviewStep = ({
     setPromoDiscount(0);
   };
 
+  const handleApplyLoyalty = (points: number, discount: number) => {
+    setLoyaltyPointsUsed(points);
+    setLoyaltyDiscount(discount);
+  };
+
+  const handleRemoveLoyalty = () => {
+    setLoyaltyPointsUsed(0);
+    setLoyaltyDiscount(0);
+  };
+
   const handleSubmit = () => {
-    onSubmit(promoCode, promoDiscount);
+    onSubmit(promoCode, promoDiscount + loyaltyDiscount, loyaltyPointsUsed);
   };
 
   return (
@@ -152,6 +171,15 @@ export const ReviewStep = ({
         appliedDiscount={promoDiscount}
       />
 
+      {/* Loyalty Points */}
+      <LoyaltyPointsInput
+        maxDiscount={maxLoyaltyDiscount}
+        onApply={handleApplyLoyalty}
+        onRemove={handleRemoveLoyalty}
+        appliedPoints={loyaltyPointsUsed}
+        appliedDiscount={loyaltyDiscount}
+      />
+
       <Separator />
 
       {/* Total */}
@@ -164,6 +192,12 @@ export const ReviewStep = ({
           <div className="flex justify-between items-center text-sm text-green-600">
             <span>Скидка ({promoCode})</span>
             <span>-{promoDiscount} сом</span>
+          </div>
+        )}
+        {loyaltyDiscount > 0 && (
+          <div className="flex justify-between items-center text-sm text-amber-600">
+            <span>Баллы лояльности</span>
+            <span>-{loyaltyDiscount} сом</span>
           </div>
         )}
         <div className="flex justify-between items-center text-lg font-semibold">
