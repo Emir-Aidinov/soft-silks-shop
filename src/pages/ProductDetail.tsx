@@ -9,6 +9,7 @@ import { Loader2, ChevronLeft, ChevronRight, ShoppingBag, Check, ArrowLeft, Pack
 import { Badge } from "@/components/ui/badge";
 import { ProductReviews } from "@/components/ProductReviews";
 import { RelatedProducts } from "@/components/RelatedProducts";
+import { SizeChart } from "@/components/SizeChart";
 
 const ProductDetail = () => {
   const { handle } = useParams();
@@ -231,6 +232,9 @@ const ProductDetail = () => {
                 <p className="text-muted-foreground">{node.description}</p>
               </div>
             )}
+
+            {/* Size Chart Button */}
+            <SizeChart />
 
             {node.options.map((option) => (
               <div key={option.name}>
