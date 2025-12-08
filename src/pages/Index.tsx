@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { HeroCarousel, SaleProducts } from "@/components/HeroCarousel";
-import { PromoBanner } from "@/components/PromoBanner";
+import { DynamicPromoBanner } from "@/components/DynamicPromoBanner";
 import { Bestsellers } from "@/components/Bestsellers";
 import { RecentlyViewed } from "@/components/RecentlyViewed";
 import { ShopifyProduct, STOREFRONT_QUERY, storefrontApiRequest } from "@/lib/shopify";
@@ -32,12 +32,8 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Promo Banner */}
-      <PromoBanner 
-        code="WELCOME15" 
-        discount="-15% на первый заказ" 
-        description="Используйте промокод при оформлении заказа"
-      />
+      {/* Dynamic Promo Banner from DB */}
+      <DynamicPromoBanner />
       
       <Header />
       

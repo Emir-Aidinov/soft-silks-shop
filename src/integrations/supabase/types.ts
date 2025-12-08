@@ -80,6 +80,48 @@ export type Database = {
         }
         Relationships: []
       }
+      promo_banners: {
+        Row: {
+          background_color: string | null
+          code: string | null
+          created_at: string
+          description: string | null
+          discount: string
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          start_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          background_color?: string | null
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          discount: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          start_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          background_color?: string | null
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          discount?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          start_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           comment: string | null
