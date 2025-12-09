@@ -26,6 +26,24 @@ interface DiscountCodeInput {
   usage_count?: number;
 }
 
+interface ProductInput {
+  title: string;
+  body_html?: string;
+  vendor?: string;
+  product_type?: string;
+  tags?: string;
+  variants?: Array<{
+    id?: number;
+    price?: string;
+    compare_at_price?: string | null;
+    sku?: string;
+    option1?: string;
+    option2?: string;
+    option3?: string;
+  }>;
+  images?: Array<{ src: string }>;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -86,7 +104,159 @@ serve(async (req) => {
 
     const shopifyAdminUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}`;
 
-    // Route handling
+    // ============ PRODUCTS ROUTES ============
+
+    if (path === '/products' && method === 'GET') {
+      // List products
+      console.log('Fetching products from Shopify...');
+      const response = await fetch(`${shopifyAdminUrl}/products.json?limit=250`, {
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      console.log(`Fetched ${data.products?.length || 0} products`);
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (path === '/products' && method === 'POST') {
+      // Create product
+      const body: ProductInput = await req.json();
+      console.log('Creating product:', body.title);
+
+      const productData = {
+        product: {
+          title: body.title,
+          body_html: body.body_html || '',
+          vendor: body.vendor || 'Бесценки',
+          product_type: body.product_type || '',
+          tags: body.tags || '',
+          variants: body.variants || [{ price: '0', compare_at_price: null }],
+          images: body.images || [],
+        },
+      };
+
+      const response = await fetch(`${shopifyAdminUrl}/products.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Shopify error:', data);
+        return new Response(JSON.stringify({ error: data.errors || 'Failed to create product' }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('Product created:', data.product?.id);
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (path.match(/^\/products\/\d+$/) && method === 'GET') {
+      // Get specific product
+      const productId = path.split('/')[2];
+      console.log('Fetching product:', productId);
+      
+      const response = await fetch(`${shopifyAdminUrl}/products/${productId}.json`, {
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (path.match(/^\/products\/\d+$/) && method === 'PUT') {
+      // Update product
+      const productId = path.split('/')[2];
+      const body: ProductInput = await req.json();
+      console.log('Updating product:', productId);
+
+      const productData = {
+        product: {
+          id: parseInt(productId),
+          title: body.title,
+          body_html: body.body_html,
+          vendor: body.vendor,
+          product_type: body.product_type,
+          tags: body.tags,
+          variants: body.variants,
+          images: body.images,
+        },
+      };
+
+      const response = await fetch(`${shopifyAdminUrl}/products/${productId}.json`, {
+        method: 'PUT',
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        console.error('Shopify error:', data);
+        return new Response(JSON.stringify({ error: data.errors || 'Failed to update product' }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('Product updated:', productId);
+      return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (path.match(/^\/products\/\d+$/) && method === 'DELETE') {
+      // Delete product
+      const productId = path.split('/')[2];
+      console.log('Deleting product:', productId);
+      
+      const response = await fetch(`${shopifyAdminUrl}/products/${productId}.json`, {
+        method: 'DELETE',
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        console.error('Shopify error:', data);
+        return new Response(JSON.stringify({ error: data.errors || 'Failed to delete product' }), {
+          status: response.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('Product deleted:', productId);
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ============ PRICE RULES ROUTES ============
+
     if (path === '/price-rules' && method === 'GET') {
       // List price rules
       const response = await fetch(`${shopifyAdminUrl}/price_rules.json`, {
