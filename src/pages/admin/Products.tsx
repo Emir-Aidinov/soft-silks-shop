@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -36,7 +36,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, ImagePlus, X, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, ImagePlus, X, Search, Upload, Package } from 'lucide-react';
 
 interface ProductImage {
   id?: number;
@@ -53,6 +53,8 @@ interface ProductVariant {
   option1?: string | null;
   option2?: string | null;
   option3?: string | null;
+  inventory_quantity?: number;
+  inventory_item_id?: number;
 }
 
 interface ProductOption {
@@ -74,11 +76,13 @@ interface Product {
 }
 
 interface VariantFormData {
+  id?: number;
   option1: string;
   option2: string;
   price: string;
   compare_at_price: string;
   sku: string;
+  inventory_quantity: number;
 }
 
 interface ProductFormData {
@@ -102,6 +106,7 @@ interface ProductFormData {
   // Simple product (no variants)
   simplePrice: string;
   simpleCompareAtPrice: string;
+  simpleInventory: number;
 }
 
 const PRODUCT_TYPES = [
@@ -133,6 +138,7 @@ const initialFormData: ProductFormData = {
   variants: [],
   simplePrice: '',
   simpleCompareAtPrice: '',
+  simpleInventory: 0,
 };
 
 // Generate all variant combinations
@@ -157,11 +163,13 @@ const generateVariants = (
       );
       
       variants.push({
+        id: existing?.id,
         option1: v1,
         option2: v2,
         price: existing?.price || '',
         compare_at_price: existing?.compare_at_price || '',
         sku: existing?.sku || '',
+        inventory_quantity: existing?.inventory_quantity || 0,
       });
     }
   }
@@ -176,6 +184,8 @@ export default function Products() {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch products
   const { data: products, isLoading } = useQuery({
@@ -204,6 +214,69 @@ export default function Products() {
     },
   });
 
+  // Upload image to Supabase Storage
+  const uploadImage = async (file: File): Promise<string> => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw new Error(`Upload error: ${uploadError.message}`);
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const uploadedUrls: string[] = [];
+
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name} не является изображением`);
+          continue;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} превышает 5MB`);
+          continue;
+        }
+
+        const url = await uploadImage(file);
+        uploadedUrls.push(url);
+      }
+
+      if (uploadedUrls.length > 0) {
+        setFormData({
+          ...formData,
+          images: [...formData.images, ...uploadedUrls],
+        });
+        toast.success(`Загружено ${uploadedUrls.length} изображений`);
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Ошибка при загрузке изображений');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
   // Create product mutation
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
@@ -220,7 +293,6 @@ export default function Products() {
       };
 
       if (data.hasVariants && data.variants.length > 0) {
-        // Build options array
         const options: { name: string; values: string[] }[] = [];
         if (data.option1Values.length > 0) {
           options.push({ name: data.option1Name, values: data.option1Values });
@@ -238,11 +310,13 @@ export default function Products() {
             price: v.price,
             compare_at_price: v.compare_at_price || null,
             sku: v.sku || null,
+            inventory_quantity: v.inventory_quantity || 0,
           }));
       } else {
         productData.variants = [{
           price: data.simplePrice,
           compare_at_price: data.simpleCompareAtPrice || null,
+          inventory_quantity: data.simpleInventory || 0,
         }];
       }
 
@@ -302,12 +376,12 @@ export default function Products() {
         productData.options = options;
         productData.variants = data.variants
           .filter(v => v.price)
-          .map((v, index) => {
+          .map((v) => {
             const existingVariant = editingProduct?.variants.find(
               ev => ev.option1 === v.option1 && ev.option2 === v.option2
             );
             return {
-              id: existingVariant?.id,
+              id: existingVariant?.id || v.id,
               option1: v.option1 || null,
               option2: v.option2 || null,
               price: v.price,
@@ -346,6 +420,40 @@ export default function Products() {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
       toast.success('Товар успешно обновлён');
       handleCloseDialog();
+    },
+    onError: (error: Error) => {
+      toast.error(`Ошибка: ${error.message}`);
+    },
+  });
+
+  // Update inventory mutation
+  const updateInventoryMutation = useMutation({
+    mutationFn: async ({ variantId, quantity }: { variantId: number; quantity: number }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch(
+        `https://dtazyqdkbjorltcfxckw.supabase.co/functions/v1/shopify-admin/inventory/${variantId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ quantity }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update inventory');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+      toast.success('Остатки обновлены');
     },
     onError: (error: Error) => {
       toast.error(`Ошибка: ${error.message}`);
@@ -403,11 +511,13 @@ export default function Products() {
     const option2 = product.options?.[1];
     
     const variants: VariantFormData[] = product.variants.map(v => ({
+      id: v.id,
       option1: v.option1 || '',
       option2: v.option2 || '',
       price: v.price || '',
       compare_at_price: v.compare_at_price || '',
       sku: v.sku || '',
+      inventory_quantity: v.inventory_quantity || 0,
     }));
 
     setFormData({
@@ -428,6 +538,7 @@ export default function Products() {
       variants: hasMultipleVariants ? variants : [],
       simplePrice: !hasMultipleVariants ? (product.variants[0]?.price || '') : '',
       simpleCompareAtPrice: !hasMultipleVariants ? (product.variants[0]?.compare_at_price || '') : '',
+      simpleInventory: !hasMultipleVariants ? (product.variants[0]?.inventory_quantity || 0) : 0,
     });
     setIsDialogOpen(true);
   };
@@ -529,7 +640,7 @@ export default function Products() {
     });
   };
 
-  const handleVariantChange = (index: number, field: keyof VariantFormData, value: string) => {
+  const handleVariantChange = (index: number, field: keyof VariantFormData, value: string | number) => {
     const newVariants = [...formData.variants];
     newVariants[index] = { ...newVariants[index], [field]: value };
     setFormData({ ...formData, variants: newVariants });
@@ -554,6 +665,10 @@ export default function Products() {
       setIsDeleting(id);
       deleteMutation.mutate(id);
     }
+  };
+
+  const getTotalInventory = (product: Product): number => {
+    return product.variants.reduce((sum, v) => sum + (v.inventory_quantity || 0), 0);
   };
 
   const filteredProducts = products?.filter((product: Product) =>
@@ -611,61 +726,71 @@ export default function Products() {
                   <TableHead>Название</TableHead>
                   <TableHead>Категория</TableHead>
                   <TableHead>Варианты</TableHead>
+                  <TableHead>Остаток</TableHead>
                   <TableHead>Цена</TableHead>
                   <TableHead className="w-24">Действия</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map((product: Product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      {product.images[0] ? (
-                        <img
-                          src={product.images[0].src || product.images[0].url}
-                          alt={product.title}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                          <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                {filteredProducts.map((product: Product) => {
+                  const totalInventory = getTotalInventory(product);
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        {product.images[0] ? (
+                          <img
+                            src={product.images[0].src || product.images[0].url}
+                            alt={product.title}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                            <ImagePlus className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{product.title}</TableCell>
+                      <TableCell>{product.product_type || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {product.variants?.length || 1} вар.
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={totalInventory > 0 ? 'default' : 'destructive'}>
+                          <Package className="h-3 w-3 mr-1" />
+                          {totalInventory} шт.
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {product.variants[0] ? formatPrice(product.variants[0].price) : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenEdit(product)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(product.id)}
+                            disabled={isDeleting === product.id}
+                          >
+                            {isDeleting === product.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            )}
+                          </Button>
                         </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{product.title}</TableCell>
-                    <TableCell>{product.product_type || '-'}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">
-                        {product.variants?.length || 1} вар.
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {product.variants[0] ? formatPrice(product.variants[0].price) : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEdit(product)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(product.id)}
-                          disabled={isDeleting === product.id}
-                        >
-                          {isDeleting === product.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          )}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -764,7 +889,7 @@ export default function Products() {
 
             {/* Simple Price (no variants) */}
             {!formData.hasVariants && (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="simplePrice">Цена (сом) *</Label>
                   <Input
@@ -789,6 +914,18 @@ export default function Products() {
                     value={formData.simpleCompareAtPrice}
                     onChange={(e) => setFormData({ ...formData, simpleCompareAtPrice: e.target.value })}
                     placeholder="0.00"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="simpleInventory">Остаток (шт.)</Label>
+                  <Input
+                    id="simpleInventory"
+                    type="number"
+                    min="0"
+                    value={formData.simpleInventory}
+                    onChange={(e) => setFormData({ ...formData, simpleInventory: parseInt(e.target.value) || 0 })}
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -959,6 +1096,7 @@ export default function Products() {
                                 )}
                                 <TableHead>Цена *</TableHead>
                                 <TableHead>Старая цена</TableHead>
+                                <TableHead>Остаток</TableHead>
                                 <TableHead>Артикул</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -979,7 +1117,7 @@ export default function Products() {
                                       value={variant.price}
                                       onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
                                       placeholder="0.00"
-                                      className="w-24"
+                                      className="w-20"
                                     />
                                   </TableCell>
                                   <TableCell>
@@ -990,7 +1128,17 @@ export default function Products() {
                                       value={variant.compare_at_price}
                                       onChange={(e) => handleVariantChange(index, 'compare_at_price', e.target.value)}
                                       placeholder="0.00"
-                                      className="w-24"
+                                      className="w-20"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={variant.inventory_quantity}
+                                      onChange={(e) => handleVariantChange(index, 'inventory_quantity', parseInt(e.target.value) || 0)}
+                                      placeholder="0"
+                                      className="w-16"
                                     />
                                   </TableCell>
                                   <TableCell>
@@ -998,7 +1146,7 @@ export default function Products() {
                                       value={variant.sku}
                                       onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
                                       placeholder="SKU"
-                                      className="w-24"
+                                      className="w-20"
                                     />
                                   </TableCell>
                                 </TableRow>
@@ -1017,11 +1165,38 @@ export default function Products() {
             <div className="space-y-3">
               <Label>Изображения</Label>
               
+              {/* File upload */}
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="flex-1"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Загрузить файлы
+                </Button>
+              </div>
+              
+              {/* URL input */}
               <div className="flex gap-2">
                 <Input
                   value={formData.newImageUrl}
                   onChange={(e) => setFormData({ ...formData, newImageUrl: e.target.value })}
-                  placeholder="URL изображения"
+                  placeholder="Или введите URL изображения"
                 />
                 <Button type="button" variant="outline" onClick={handleAddImage}>
                   <ImagePlus className="h-4 w-4" />
