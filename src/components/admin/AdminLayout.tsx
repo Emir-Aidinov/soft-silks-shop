@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, ShoppingBag, Tag, ArrowLeft, Megaphone } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Tag, ArrowLeft, Megaphone, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AdminLayoutProps {
@@ -10,6 +10,7 @@ interface AdminLayoutProps {
 
 const navItems = [
   { path: '/admin', label: 'Дашборд', icon: LayoutDashboard },
+  { path: '/admin/products', label: 'Товары', icon: Package },
   { path: '/admin/orders', label: 'Заказы', icon: ShoppingBag },
   { path: '/admin/discounts', label: 'Скидки', icon: Tag },
   { path: '/admin/banners', label: 'Баннеры', icon: Megaphone },

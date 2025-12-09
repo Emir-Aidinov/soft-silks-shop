@@ -5,6 +5,7 @@ import Dashboard from './admin/Dashboard';
 import Orders from './admin/Orders';
 import Discounts from './admin/Discounts';
 import Banners from './admin/Banners';
+import Products from './admin/Products';
 
 export default function Admin() {
   return (
@@ -12,6 +13,7 @@ export default function Admin() {
       <AdminLayout>
         <Routes>
           <Route index element={<Dashboard />} />
+          <Route path="products" element={<Products />} />
           <Route path="orders" element={<Orders />} />
           <Route path="discounts" element={<Discounts />} />
           <Route path="banners" element={<Banners />} />
