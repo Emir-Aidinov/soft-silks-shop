@@ -27,7 +27,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2, Loader2, ImagePlus, X, Search } from 'lucide-react';
 
@@ -41,10 +48,16 @@ interface ProductVariant {
   id?: number;
   title: string;
   price: string;
+  compare_at_price?: string | null;
   sku?: string;
-  option1?: string;
-  option2?: string;
-  option3?: string;
+  option1?: string | null;
+  option2?: string | null;
+  option3?: string | null;
+}
+
+interface ProductOption {
+  name: string;
+  values: string[];
 }
 
 interface Product {
@@ -56,7 +69,16 @@ interface Product {
   tags: string;
   images: ProductImage[];
   variants: ProductVariant[];
+  options: ProductOption[];
   status: string;
+}
+
+interface VariantFormData {
+  option1: string;
+  option2: string;
+  price: string;
+  compare_at_price: string;
+  sku: string;
 }
 
 interface ProductFormData {
@@ -65,10 +87,21 @@ interface ProductFormData {
   vendor: string;
   product_type: string;
   tags: string;
-  price: string;
-  compare_at_price: string;
   images: string[];
   newImageUrl: string;
+  // Options
+  hasVariants: boolean;
+  option1Name: string;
+  option1Values: string[];
+  newOption1Value: string;
+  option2Name: string;
+  option2Values: string[];
+  newOption2Value: string;
+  // Variants
+  variants: VariantFormData[];
+  // Simple product (no variants)
+  simplePrice: string;
+  simpleCompareAtPrice: string;
 }
 
 const PRODUCT_TYPES = [
@@ -79,16 +112,61 @@ const PRODUCT_TYPES = [
   { value: 'другое', label: 'Другое' },
 ];
 
+const COMMON_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL'];
+const COMMON_COLORS = ['Чёрный', 'Белый', 'Красный', 'Розовый', 'Бежевый', 'Синий', 'Бордовый'];
+
 const initialFormData: ProductFormData = {
   title: '',
   body_html: '',
   vendor: 'Бесценки',
   product_type: '',
   tags: '',
-  price: '',
-  compare_at_price: '',
   images: [],
   newImageUrl: '',
+  hasVariants: false,
+  option1Name: 'Размер',
+  option1Values: [],
+  newOption1Value: '',
+  option2Name: 'Цвет',
+  option2Values: [],
+  newOption2Value: '',
+  variants: [],
+  simplePrice: '',
+  simpleCompareAtPrice: '',
+};
+
+// Generate all variant combinations
+const generateVariants = (
+  option1Values: string[],
+  option2Values: string[],
+  existingVariants: VariantFormData[]
+): VariantFormData[] => {
+  const variants: VariantFormData[] = [];
+  
+  if (option1Values.length === 0 && option2Values.length === 0) {
+    return variants;
+  }
+  
+  const opt1 = option1Values.length > 0 ? option1Values : [''];
+  const opt2 = option2Values.length > 0 ? option2Values : [''];
+  
+  for (const v1 of opt1) {
+    for (const v2 of opt2) {
+      const existing = existingVariants.find(
+        (ev) => ev.option1 === v1 && ev.option2 === v2
+      );
+      
+      variants.push({
+        option1: v1,
+        option2: v2,
+        price: existing?.price || '',
+        compare_at_price: existing?.compare_at_price || '',
+        sku: existing?.sku || '',
+      });
+    }
+  }
+  
+  return variants;
 };
 
 export default function Products() {
@@ -132,20 +210,41 @@ export default function Products() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const productData = {
+      let productData: any = {
         title: data.title,
         body_html: data.body_html,
         vendor: data.vendor,
         product_type: data.product_type,
         tags: data.tags,
-        variants: [
-          {
-            price: data.price,
-            compare_at_price: data.compare_at_price || null,
-          },
-        ],
         images: data.images.map(url => ({ src: url })),
       };
+
+      if (data.hasVariants && data.variants.length > 0) {
+        // Build options array
+        const options: { name: string; values: string[] }[] = [];
+        if (data.option1Values.length > 0) {
+          options.push({ name: data.option1Name, values: data.option1Values });
+        }
+        if (data.option2Values.length > 0) {
+          options.push({ name: data.option2Name, values: data.option2Values });
+        }
+        
+        productData.options = options;
+        productData.variants = data.variants
+          .filter(v => v.price)
+          .map(v => ({
+            option1: v.option1 || null,
+            option2: v.option2 || null,
+            price: v.price,
+            compare_at_price: v.compare_at_price || null,
+            sku: v.sku || null,
+          }));
+      } else {
+        productData.variants = [{
+          price: data.simplePrice,
+          compare_at_price: data.simpleCompareAtPrice || null,
+        }];
+      }
 
       const response = await fetch(
         `https://dtazyqdkbjorltcfxckw.supabase.co/functions/v1/shopify-admin/products`,
@@ -182,19 +281,47 @@ export default function Products() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const productData = {
+      let productData: any = {
         title: data.title,
         body_html: data.body_html,
         vendor: data.vendor,
         product_type: data.product_type,
         tags: data.tags,
-        variants: editingProduct?.variants.map(v => ({
-          id: v.id,
-          price: data.price,
-          compare_at_price: data.compare_at_price || null,
-        })) || [{ price: data.price, compare_at_price: data.compare_at_price || null }],
         images: data.images.map(url => ({ src: url })),
       };
+
+      if (data.hasVariants && data.variants.length > 0) {
+        const options: { name: string; values: string[] }[] = [];
+        if (data.option1Values.length > 0) {
+          options.push({ name: data.option1Name, values: data.option1Values });
+        }
+        if (data.option2Values.length > 0) {
+          options.push({ name: data.option2Name, values: data.option2Values });
+        }
+        
+        productData.options = options;
+        productData.variants = data.variants
+          .filter(v => v.price)
+          .map((v, index) => {
+            const existingVariant = editingProduct?.variants.find(
+              ev => ev.option1 === v.option1 && ev.option2 === v.option2
+            );
+            return {
+              id: existingVariant?.id,
+              option1: v.option1 || null,
+              option2: v.option2 || null,
+              price: v.price,
+              compare_at_price: v.compare_at_price || null,
+              sku: v.sku || null,
+            };
+          });
+      } else {
+        productData.variants = editingProduct?.variants.map(v => ({
+          id: v.id,
+          price: data.simplePrice,
+          compare_at_price: data.simpleCompareAtPrice || null,
+        })) || [{ price: data.simplePrice, compare_at_price: data.simpleCompareAtPrice || null }];
+      }
 
       const response = await fetch(
         `https://dtazyqdkbjorltcfxckw.supabase.co/functions/v1/shopify-admin/products/${id}`,
@@ -268,16 +395,39 @@ export default function Products() {
 
   const handleOpenEdit = (product: Product) => {
     setEditingProduct(product);
+    
+    const hasMultipleVariants = product.variants.length > 1 || 
+      (product.options && product.options.length > 0 && product.options[0]?.name !== 'Title');
+    
+    const option1 = product.options?.[0];
+    const option2 = product.options?.[1];
+    
+    const variants: VariantFormData[] = product.variants.map(v => ({
+      option1: v.option1 || '',
+      option2: v.option2 || '',
+      price: v.price || '',
+      compare_at_price: v.compare_at_price || '',
+      sku: v.sku || '',
+    }));
+
     setFormData({
       title: product.title,
       body_html: product.body_html || '',
       vendor: product.vendor || 'Бесценки',
       product_type: product.product_type || '',
       tags: product.tags || '',
-      price: product.variants[0]?.price || '',
-      compare_at_price: '',
       images: product.images.map(img => img.src || img.url || '').filter(Boolean),
       newImageUrl: '',
+      hasVariants: hasMultipleVariants,
+      option1Name: option1?.name || 'Размер',
+      option1Values: option1?.values || [],
+      newOption1Value: '',
+      option2Name: option2?.name || 'Цвет',
+      option2Values: option2?.values || [],
+      newOption2Value: '',
+      variants: hasMultipleVariants ? variants : [],
+      simplePrice: !hasMultipleVariants ? (product.variants[0]?.price || '') : '',
+      simpleCompareAtPrice: !hasMultipleVariants ? (product.variants[0]?.compare_at_price || '') : '',
     });
     setIsDialogOpen(true);
   };
@@ -296,9 +446,17 @@ export default function Products() {
       return;
     }
     
-    if (!formData.price.trim()) {
-      toast.error('Введите цену товара');
-      return;
+    if (formData.hasVariants) {
+      const hasValidVariant = formData.variants.some(v => v.price);
+      if (!hasValidVariant) {
+        toast.error('Добавьте хотя бы один вариант с ценой');
+        return;
+      }
+    } else {
+      if (!formData.simplePrice.trim()) {
+        toast.error('Введите цену товара');
+        return;
+      }
     }
 
     if (editingProduct) {
@@ -323,6 +481,72 @@ export default function Products() {
       ...formData,
       images: formData.images.filter((_, i) => i !== index),
     });
+  };
+
+  const handleAddOption1Value = (value: string) => {
+    if (value && !formData.option1Values.includes(value)) {
+      const newValues = [...formData.option1Values, value];
+      const newVariants = generateVariants(newValues, formData.option2Values, formData.variants);
+      setFormData({
+        ...formData,
+        option1Values: newValues,
+        newOption1Value: '',
+        variants: newVariants,
+      });
+    }
+  };
+
+  const handleRemoveOption1Value = (value: string) => {
+    const newValues = formData.option1Values.filter(v => v !== value);
+    const newVariants = generateVariants(newValues, formData.option2Values, formData.variants);
+    setFormData({
+      ...formData,
+      option1Values: newValues,
+      variants: newVariants,
+    });
+  };
+
+  const handleAddOption2Value = (value: string) => {
+    if (value && !formData.option2Values.includes(value)) {
+      const newValues = [...formData.option2Values, value];
+      const newVariants = generateVariants(formData.option1Values, newValues, formData.variants);
+      setFormData({
+        ...formData,
+        option2Values: newValues,
+        newOption2Value: '',
+        variants: newVariants,
+      });
+    }
+  };
+
+  const handleRemoveOption2Value = (value: string) => {
+    const newValues = formData.option2Values.filter(v => v !== value);
+    const newVariants = generateVariants(formData.option1Values, newValues, formData.variants);
+    setFormData({
+      ...formData,
+      option2Values: newValues,
+      variants: newVariants,
+    });
+  };
+
+  const handleVariantChange = (index: number, field: keyof VariantFormData, value: string) => {
+    const newVariants = [...formData.variants];
+    newVariants[index] = { ...newVariants[index], [field]: value };
+    setFormData({ ...formData, variants: newVariants });
+  };
+
+  const handleApplyPriceToAll = () => {
+    const firstPrice = formData.variants[0]?.price;
+    const firstCompare = formData.variants[0]?.compare_at_price;
+    if (firstPrice) {
+      const newVariants = formData.variants.map(v => ({
+        ...v,
+        price: firstPrice,
+        compare_at_price: firstCompare || '',
+      }));
+      setFormData({ ...formData, variants: newVariants });
+      toast.success('Цена применена ко всем вариантам');
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -386,6 +610,7 @@ export default function Products() {
                   <TableHead className="w-16">Фото</TableHead>
                   <TableHead>Название</TableHead>
                   <TableHead>Категория</TableHead>
+                  <TableHead>Варианты</TableHead>
                   <TableHead>Цена</TableHead>
                   <TableHead className="w-24">Действия</TableHead>
                 </TableRow>
@@ -408,6 +633,11 @@ export default function Products() {
                     </TableCell>
                     <TableCell className="font-medium">{product.title}</TableCell>
                     <TableCell>{product.product_type || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {product.variants?.length || 1} вар.
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       {product.variants[0] ? formatPrice(product.variants[0].price) : '-'}
                     </TableCell>
@@ -444,7 +674,7 @@ export default function Products() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? 'Редактировать товар' : 'Добавить товар'}
@@ -452,6 +682,7 @@ export default function Products() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Basic Info */}
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="title">Название *</Label>
@@ -491,37 +722,8 @@ export default function Products() {
                 value={formData.body_html}
                 onChange={(e) => setFormData({ ...formData, body_html: e.target.value })}
                 placeholder="Описание товара"
-                rows={4}
+                rows={3}
               />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="price">Цена (сом) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="0.00"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="compare_at_price">Старая цена (сом)</Label>
-                <Input
-                  id="compare_at_price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.compare_at_price}
-                  onChange={(e) => setFormData({ ...formData, compare_at_price: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -545,6 +747,271 @@ export default function Products() {
                 />
               </div>
             </div>
+
+            {/* Variants Toggle */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <input
+                type="checkbox"
+                id="hasVariants"
+                checked={formData.hasVariants}
+                onChange={(e) => setFormData({ ...formData, hasVariants: e.target.checked })}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="hasVariants" className="cursor-pointer">
+                Товар с вариантами (размеры, цвета)
+              </Label>
+            </div>
+
+            {/* Simple Price (no variants) */}
+            {!formData.hasVariants && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="simplePrice">Цена (сом) *</Label>
+                  <Input
+                    id="simplePrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.simplePrice}
+                    onChange={(e) => setFormData({ ...formData, simplePrice: e.target.value })}
+                    placeholder="0.00"
+                    required={!formData.hasVariants}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="simpleCompareAtPrice">Старая цена (сом)</Label>
+                  <Input
+                    id="simpleCompareAtPrice"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.simpleCompareAtPrice}
+                    onChange={(e) => setFormData({ ...formData, simpleCompareAtPrice: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Variants Section */}
+            {formData.hasVariants && (
+              <Accordion type="single" collapsible defaultValue="options" className="border rounded-lg">
+                <AccordionItem value="options" className="border-none">
+                  <AccordionTrigger className="px-4">Настройка вариантов</AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4 space-y-4">
+                    {/* Option 1 (Size) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label>Опция 1:</Label>
+                        <Input
+                          value={formData.option1Name}
+                          onChange={(e) => setFormData({ ...formData, option1Name: e.target.value })}
+                          className="w-32"
+                          placeholder="Размер"
+                        />
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        {formData.option1Values.map((value) => (
+                          <Badge key={value} variant="secondary" className="gap-1">
+                            {value}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveOption1Value(value)}
+                              className="hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Input
+                          value={formData.newOption1Value}
+                          onChange={(e) => setFormData({ ...formData, newOption1Value: e.target.value })}
+                          placeholder={`Добавить ${formData.option1Name.toLowerCase()}`}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddOption1Value(formData.newOption1Value);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleAddOption1Value(formData.newOption1Value)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {formData.option1Name.toLowerCase() === 'размер' && (
+                        <div className="flex flex-wrap gap-1">
+                          {COMMON_SIZES.filter(s => !formData.option1Values.includes(s)).map((size) => (
+                            <Button
+                              key={size}
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleAddOption1Value(size)}
+                            >
+                              + {size}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Option 2 (Color) */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label>Опция 2:</Label>
+                        <Input
+                          value={formData.option2Name}
+                          onChange={(e) => setFormData({ ...formData, option2Name: e.target.value })}
+                          className="w-32"
+                          placeholder="Цвет"
+                        />
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        {formData.option2Values.map((value) => (
+                          <Badge key={value} variant="secondary" className="gap-1">
+                            {value}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveOption2Value(value)}
+                              className="hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Input
+                          value={formData.newOption2Value}
+                          onChange={(e) => setFormData({ ...formData, newOption2Value: e.target.value })}
+                          placeholder={`Добавить ${formData.option2Name.toLowerCase()}`}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddOption2Value(formData.newOption2Value);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleAddOption2Value(formData.newOption2Value)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      
+                      {formData.option2Name.toLowerCase() === 'цвет' && (
+                        <div className="flex flex-wrap gap-1">
+                          {COMMON_COLORS.filter(c => !formData.option2Values.includes(c)).map((color) => (
+                            <Button
+                              key={color}
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => handleAddOption2Value(color)}
+                            >
+                              + {color}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Variants Table */}
+                    {formData.variants.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label>Варианты ({formData.variants.length})</Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleApplyPriceToAll}
+                          >
+                            Применить цену ко всем
+                          </Button>
+                        </div>
+                        
+                        <div className="border rounded-lg overflow-hidden">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                {formData.option1Values.length > 0 && (
+                                  <TableHead>{formData.option1Name}</TableHead>
+                                )}
+                                {formData.option2Values.length > 0 && (
+                                  <TableHead>{formData.option2Name}</TableHead>
+                                )}
+                                <TableHead>Цена *</TableHead>
+                                <TableHead>Старая цена</TableHead>
+                                <TableHead>Артикул</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {formData.variants.map((variant, index) => (
+                                <TableRow key={`${variant.option1}-${variant.option2}`}>
+                                  {formData.option1Values.length > 0 && (
+                                    <TableCell className="font-medium">{variant.option1}</TableCell>
+                                  )}
+                                  {formData.option2Values.length > 0 && (
+                                    <TableCell>{variant.option2}</TableCell>
+                                  )}
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={variant.price}
+                                      onChange={(e) => handleVariantChange(index, 'price', e.target.value)}
+                                      placeholder="0.00"
+                                      className="w-24"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={variant.compare_at_price}
+                                      onChange={(e) => handleVariantChange(index, 'compare_at_price', e.target.value)}
+                                      placeholder="0.00"
+                                      className="w-24"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      value={variant.sku}
+                                      onChange={(e) => handleVariantChange(index, 'sku', e.target.value)}
+                                      placeholder="SKU"
+                                      className="w-24"
+                                    />
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
 
             {/* Images section */}
             <div className="space-y-3">
