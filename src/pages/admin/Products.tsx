@@ -106,17 +106,7 @@ export default function Products() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const response = await supabase.functions.invoke('shopify-admin', {
-        body: {},
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.error) throw response.error;
-      
-      // The function returns products from /products endpoint
-      const result = await fetch(
+      const response = await fetch(
         `https://dtazyqdkbjorltcfxckw.supabase.co/functions/v1/shopify-admin/products`,
         {
           headers: {
@@ -126,7 +116,12 @@ export default function Products() {
         }
       );
       
-      const data = await result.json();
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to fetch products');
+      }
+      
+      const data = await response.json();
       return data.products || [];
     },
   });
