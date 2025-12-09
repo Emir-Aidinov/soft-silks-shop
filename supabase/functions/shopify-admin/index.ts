@@ -32,16 +32,23 @@ interface ProductInput {
   vendor?: string;
   product_type?: string;
   tags?: string;
+  options?: Array<{ name: string; values: string[] }>;
   variants?: Array<{
     id?: number;
     price?: string;
     compare_at_price?: string | null;
     sku?: string;
-    option1?: string;
-    option2?: string;
-    option3?: string;
+    option1?: string | null;
+    option2?: string | null;
+    option3?: string | null;
+    inventory_quantity?: number;
   }>;
   images?: Array<{ src: string }>;
+}
+
+interface InventoryUpdate {
+  variant_id: number;
+  quantity: number;
 }
 
 serve(async (req) => {
@@ -128,17 +135,37 @@ serve(async (req) => {
       const body: ProductInput = await req.json();
       console.log('Creating product:', body.title);
 
-      const productData = {
+      const productData: any = {
         product: {
           title: body.title,
           body_html: body.body_html || '',
           vendor: body.vendor || 'Бесценки',
           product_type: body.product_type || '',
           tags: body.tags || '',
-          variants: body.variants || [{ price: '0', compare_at_price: null }],
           images: body.images || [],
         },
       };
+
+      // Add options if provided
+      if (body.options && body.options.length > 0) {
+        productData.product.options = body.options;
+      }
+
+      // Add variants
+      if (body.variants && body.variants.length > 0) {
+        productData.product.variants = body.variants.map(v => ({
+          option1: v.option1 || null,
+          option2: v.option2 || null,
+          option3: v.option3 || null,
+          price: v.price || '0',
+          compare_at_price: v.compare_at_price || null,
+          sku: v.sku || null,
+          inventory_management: 'shopify',
+          inventory_quantity: v.inventory_quantity || 0,
+        }));
+      } else {
+        productData.product.variants = [{ price: '0', compare_at_price: null }];
+      }
 
       const response = await fetch(`${shopifyAdminUrl}/products.json`, {
         method: 'POST',
@@ -189,7 +216,7 @@ serve(async (req) => {
       const body: ProductInput = await req.json();
       console.log('Updating product:', productId);
 
-      const productData = {
+      const productData: any = {
         product: {
           id: parseInt(productId),
           title: body.title,
@@ -197,10 +224,27 @@ serve(async (req) => {
           vendor: body.vendor,
           product_type: body.product_type,
           tags: body.tags,
-          variants: body.variants,
           images: body.images,
         },
       };
+
+      // Add options if provided
+      if (body.options && body.options.length > 0) {
+        productData.product.options = body.options;
+      }
+
+      // Add variants with inventory
+      if (body.variants) {
+        productData.product.variants = body.variants.map(v => ({
+          id: v.id,
+          option1: v.option1 || null,
+          option2: v.option2 || null,
+          option3: v.option3 || null,
+          price: v.price,
+          compare_at_price: v.compare_at_price || null,
+          sku: v.sku || null,
+        }));
+      }
 
       const response = await fetch(`${shopifyAdminUrl}/products/${productId}.json`, {
         method: 'PUT',
@@ -223,6 +267,85 @@ serve(async (req) => {
 
       console.log('Product updated:', productId);
       return new Response(JSON.stringify(data), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Update inventory for a variant
+    if (path.match(/^\/inventory\/\d+$/) && method === 'PUT') {
+      const variantId = path.split('/')[2];
+      const body: { quantity: number } = await req.json();
+      console.log('Updating inventory for variant:', variantId, 'quantity:', body.quantity);
+
+      // First, get the inventory item ID for this variant
+      const variantResponse = await fetch(`${shopifyAdminUrl}/variants/${variantId}.json`, {
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!variantResponse.ok) {
+        return new Response(JSON.stringify({ error: 'Variant not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const variantData = await variantResponse.json();
+      const inventoryItemId = variantData.variant?.inventory_item_id;
+
+      if (!inventoryItemId) {
+        return new Response(JSON.stringify({ error: 'Inventory item not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Get location ID (use first available location)
+      const locationsResponse = await fetch(`${shopifyAdminUrl}/locations.json`, {
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const locationsData = await locationsResponse.json();
+      const locationId = locationsData.locations?.[0]?.id;
+
+      if (!locationId) {
+        return new Response(JSON.stringify({ error: 'No location found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Set inventory level
+      const inventoryResponse = await fetch(`${shopifyAdminUrl}/inventory_levels/set.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': SHOPIFY_ACCESS_TOKEN,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          location_id: locationId,
+          inventory_item_id: inventoryItemId,
+          available: body.quantity,
+        }),
+      });
+
+      const inventoryData = await inventoryResponse.json();
+
+      if (!inventoryResponse.ok) {
+        console.error('Shopify inventory error:', inventoryData);
+        return new Response(JSON.stringify({ error: inventoryData.errors || 'Failed to update inventory' }), {
+          status: inventoryResponse.status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('Inventory updated for variant:', variantId);
+      return new Response(JSON.stringify({ success: true, inventory_level: inventoryData.inventory_level }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
