@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -35,8 +36,9 @@ import {
 } from '@/components/ui/accordion';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Loader2, ImagePlus, X, Search, Upload, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, ImagePlus, X, Search, Upload, Package, Download, Percent, DollarSign } from 'lucide-react';
 
 interface ProductImage {
   id?: number;
@@ -186,6 +188,14 @@ export default function Products() {
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Bulk edit state
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [bulkEditType, setBulkEditType] = useState<'percent' | 'fixed'>('percent');
+  const [bulkEditValue, setBulkEditValue] = useState('');
+  const [bulkEditDirection, setBulkEditDirection] = useState<'increase' | 'decrease'>('increase');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   // Fetch products
   const { data: products, isLoading } = useQuery({
@@ -682,15 +692,228 @@ export default function Products() {
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
+  // Toggle product selection
+  const toggleProductSelection = (productId: number) => {
+    const newSelected = new Set(selectedProducts);
+    if (newSelected.has(productId)) {
+      newSelected.delete(productId);
+    } else {
+      newSelected.add(productId);
+    }
+    setSelectedProducts(newSelected);
+  };
+
+  // Select all products
+  const toggleSelectAll = () => {
+    if (selectedProducts.size === filteredProducts.length) {
+      setSelectedProducts(new Set());
+    } else {
+      setSelectedProducts(new Set(filteredProducts.map((p: Product) => p.id)));
+    }
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (!products || products.length === 0) {
+      toast.error('Нет товаров для экспорта');
+      return;
+    }
+
+    const headers = [
+      'ID',
+      'Название',
+      'Описание',
+      'Категория',
+      'Бренд',
+      'Теги',
+      'Цена',
+      'Старая цена',
+      'Остаток',
+      'Варианты',
+      'Артикул',
+    ];
+
+    const rows = products.flatMap((product: Product) => {
+      if (product.variants.length <= 1) {
+        const variant = product.variants[0];
+        return [[
+          product.id,
+          product.title,
+          (product.body_html || '').replace(/<[^>]*>/g, '').replace(/\n/g, ' '),
+          product.product_type || '',
+          product.vendor || '',
+          product.tags || '',
+          variant?.price || '',
+          variant?.compare_at_price || '',
+          variant?.inventory_quantity || 0,
+          '',
+          variant?.sku || '',
+        ]];
+      }
+      
+      return product.variants.map((variant, idx) => [
+        idx === 0 ? product.id : '',
+        idx === 0 ? product.title : '',
+        idx === 0 ? (product.body_html || '').replace(/<[^>]*>/g, '').replace(/\n/g, ' ') : '',
+        idx === 0 ? (product.product_type || '') : '',
+        idx === 0 ? (product.vendor || '') : '',
+        idx === 0 ? (product.tags || '') : '',
+        variant.price || '',
+        variant.compare_at_price || '',
+        variant.inventory_quantity || 0,
+        [variant.option1, variant.option2, variant.option3].filter(Boolean).join(' / '),
+        variant.sku || '',
+      ]);
+    });
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'))
+    ].join('\n');
+
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `products_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    
+    toast.success(`Экспортировано ${products.length} товаров`);
+  };
+
+  // Bulk price update
+  const handleBulkPriceUpdate = async () => {
+    if (selectedProducts.size === 0) {
+      toast.error('Выберите товары для редактирования');
+      return;
+    }
+
+    const value = parseFloat(bulkEditValue);
+    if (isNaN(value) || value <= 0) {
+      toast.error('Введите корректное значение');
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error('Не авторизован');
+      setIsBulkUpdating(false);
+      return;
+    }
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const productId of selectedProducts) {
+      const product = products?.find((p: Product) => p.id === productId);
+      if (!product) continue;
+
+      try {
+        const updatedVariants = product.variants.map((v: ProductVariant) => {
+          const currentPrice = parseFloat(v.price) || 0;
+          let newPrice: number;
+
+          if (bulkEditType === 'percent') {
+            const change = currentPrice * (value / 100);
+            newPrice = bulkEditDirection === 'increase' 
+              ? currentPrice + change 
+              : currentPrice - change;
+          } else {
+            newPrice = bulkEditDirection === 'increase'
+              ? currentPrice + value
+              : currentPrice - value;
+          }
+
+          return {
+            id: v.id,
+            price: Math.max(0, newPrice).toFixed(2),
+          };
+        });
+
+        const response = await fetch(
+          `https://dtazyqdkbjorltcfxckw.supabase.co/functions/v1/shopify-admin/products/${productId}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              title: product.title,
+              variants: updatedVariants,
+            }),
+          }
+        );
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch {
+        errorCount++;
+      }
+    }
+
+    setIsBulkUpdating(false);
+    setIsBulkEditOpen(false);
+    setSelectedProducts(new Set());
+    setBulkEditValue('');
+    queryClient.invalidateQueries({ queryKey: ['admin-products'] });
+
+    if (successCount > 0) {
+      toast.success(`Обновлено ${successCount} товаров`);
+    }
+    if (errorCount > 0) {
+      toast.error(`Ошибка при обновлении ${errorCount} товаров`);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold">Управление товарами</h2>
-        <Button onClick={handleOpenCreate}>
-          <Plus className="h-4 w-4 mr-2" />
-          Добавить товар
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportToCSV} disabled={!products?.length}>
+            <Download className="h-4 w-4 mr-2" />
+            Экспорт CSV
+          </Button>
+          <Button onClick={handleOpenCreate}>
+            <Plus className="h-4 w-4 mr-2" />
+            Добавить товар
+          </Button>
+        </div>
       </div>
+
+      {/* Bulk actions bar */}
+      {selectedProducts.size > 0 && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                Выбрано: {selectedProducts.size} товаров
+              </span>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedProducts(new Set())}
+                >
+                  Снять выделение
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setIsBulkEditOpen(true)}
+                >
+                  <Percent className="h-4 w-4 mr-2" />
+                  Изменить цены
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -722,6 +945,12 @@ export default function Products() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead className="w-16">Фото</TableHead>
                   <TableHead>Название</TableHead>
                   <TableHead>Категория</TableHead>
@@ -734,8 +963,15 @@ export default function Products() {
               <TableBody>
                 {filteredProducts.map((product: Product) => {
                   const totalInventory = getTotalInventory(product);
+                  const isSelected = selectedProducts.has(product.id);
                   return (
-                    <TableRow key={product.id}>
+                    <TableRow key={product.id} className={isSelected ? 'bg-primary/5' : ''}>
+                      <TableCell>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleProductSelection(product.id)}
+                        />
+                      </TableCell>
                       <TableCell>
                         {product.images[0] ? (
                           <img
@@ -1237,6 +1473,122 @@ export default function Products() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Edit Dialog */}
+      <Dialog open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Массовое изменение цен</DialogTitle>
+            <DialogDescription>
+              Изменить цены для {selectedProducts.size} выбранных товаров
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Тип изменения</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={bulkEditType === 'percent' ? 'default' : 'outline'}
+                  onClick={() => setBulkEditType('percent')}
+                  className="flex-1"
+                >
+                  <Percent className="h-4 w-4 mr-2" />
+                  Процент
+                </Button>
+                <Button
+                  type="button"
+                  variant={bulkEditType === 'fixed' ? 'default' : 'outline'}
+                  onClick={() => setBulkEditType('fixed')}
+                  className="flex-1"
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Фикс. сумма
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Направление</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={bulkEditDirection === 'increase' ? 'default' : 'outline'}
+                  onClick={() => setBulkEditDirection('increase')}
+                  className="flex-1"
+                >
+                  ↑ Повысить
+                </Button>
+                <Button
+                  type="button"
+                  variant={bulkEditDirection === 'decrease' ? 'default' : 'outline'}
+                  onClick={() => setBulkEditDirection('decrease')}
+                  className="flex-1"
+                >
+                  ↓ Понизить
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bulkValue">
+                {bulkEditType === 'percent' ? 'Процент (%)' : 'Сумма (сом)'}
+              </Label>
+              <Input
+                id="bulkValue"
+                type="number"
+                step="0.01"
+                min="0"
+                value={bulkEditValue}
+                onChange={(e) => setBulkEditValue(e.target.value)}
+                placeholder={bulkEditType === 'percent' ? '10' : '100'}
+              />
+            </div>
+
+            {bulkEditValue && parseFloat(bulkEditValue) > 0 && (
+              <div className="p-3 bg-muted rounded-lg text-sm">
+                <p className="text-muted-foreground">
+                  Пример: цена 1000 сом → {' '}
+                  <span className="font-medium text-foreground">
+                    {(() => {
+                      const val = parseFloat(bulkEditValue);
+                      const base = 1000;
+                      if (bulkEditType === 'percent') {
+                        const change = base * (val / 100);
+                        return bulkEditDirection === 'increase'
+                          ? (base + change).toFixed(0)
+                          : Math.max(0, base - change).toFixed(0);
+                      } else {
+                        return bulkEditDirection === 'increase'
+                          ? (base + val).toFixed(0)
+                          : Math.max(0, base - val).toFixed(0);
+                      }
+                    })()}
+                  </span> сом
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsBulkEditOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button
+              onClick={handleBulkPriceUpdate}
+              disabled={isBulkUpdating || !bulkEditValue || parseFloat(bulkEditValue) <= 0}
+            >
+              {isBulkUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Применить
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
